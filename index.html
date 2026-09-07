@@ -1,1094 +1,616 @@
 <!doctype html>
 <html lang="es">
-
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>Frutura · Registro de cosecha</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#1f6f46">
+  <title>Frutura · Registro de cosecha</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
+  <style>
+    :root{
+      --bg:#f2f6f3;--card:#fff;--soft:#edf3ef;--text:#173025;--muted:#68776e;--line:#d6e1da;
+      --green:#1f6f46;--green2:#175a38;--green-soft:#e8f4ed;--amber:#a86608;--amber-soft:#fff6e7;
+      --red:#a63737;--red-soft:#fff0f0;--blue:#2d668e;--shadow:0 8px 28px rgba(22,48,36,.08)
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+    body.modal-open{overflow:hidden}
+    button,input,select{font:inherit}
+    button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .app{min-height:100dvh;max-width:720px;margin:0 auto;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+    .topbar{height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .topbar h1{font-size:1.05rem;margin:0;font-weight:900;letter-spacing:-.01em}
+    .topbar .subtitle{font-size:.76rem;color:var(--muted);margin-top:2px}
+    .icon-btn{width:48px;height:48px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--text);display:grid;place-items:center;cursor:pointer}
+    .icon-btn .bi{font-size:1.3rem}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+    .hidden{display:none!important}
+    .muted{color:var(--muted)}
+    .small{font-size:.8rem}
+    .btn{min-height:54px;border:0;border-radius:12px;padding:11px 15px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    .btn .bi{font-size:1.1rem}
+    .btn-primary{background:var(--green);color:#fff}
+    .btn-primary:active{background:var(--green2)}
+    .btn-secondary{background:var(--soft);color:var(--text);border:1px solid var(--line)}
+    .btn-warning{background:var(--amber-soft);color:var(--amber);border:1px solid #e9c992}
+    .btn-danger{background:var(--red);color:#fff}
+    .btn-link{border:0;background:transparent;color:var(--green);font-weight:850;min-height:48px;padding:7px;cursor:pointer}
+    .full{width:100%}
+
+    /* Preparación */
+    .setup{padding:17px;margin-bottom:14px}
+    .setup h2{font-size:1.15rem;margin:0 0 4px}
+    .setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+    label{display:grid;gap:6px;font-size:.79rem;color:var(--muted);font-weight:850}
+    input,select{width:100%;min-height:50px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--text);padding:10px 11px;font-size:16px}
+    .setup-actions{display:grid;gap:9px;margin-top:14px}
+    .prep-note{margin-top:12px;padding:11px;border-radius:11px;background:var(--soft);font-size:.8rem;color:var(--muted);line-height:1.35}
+
+    /* Jornada */
+    .session-strip{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:10px 12px;margin-bottom:9px;box-shadow:none}
+    .session-main{min-width:0}
+    .session-title{font-weight:950;font-size:.96rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .session-sub{color:var(--muted);font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+    .session-kpi{text-align:right;white-space:nowrap}
+    .session-kpi strong{font-size:1.18rem;display:block;line-height:1}
+    .session-kpi span{font-size:.7rem;color:var(--muted)}
+
+    .camera-card{overflow:hidden;box-shadow:none}
+    .camera-frame{position:relative;height:min(34dvh,270px);min-height:200px;background:#101410;overflow:hidden;border-radius:15px 15px 0 0}
+    #cameraViewport{position:absolute;inset:0;overflow:hidden}
+    #cameraViewport video,#cameraViewport canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover!important}
+    #cameraViewport canvas.drawingBuffer{display:none!important}
+    .camera-placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:28px;color:white;background:linear-gradient(180deg,rgba(0,0,0,.22),rgba(0,0,0,.63));z-index:2;font-weight:800;line-height:1.35}
+    .scan-guide{position:absolute;z-index:3;left:9%;right:9%;top:33%;height:34%;border:3px solid rgba(255,255,255,.95);border-radius:15px;box-shadow:0 0 0 999px rgba(0,0,0,.16);pointer-events:none}
+    .scan-guide:after{content:"";position:absolute;left:8%;right:8%;top:50%;height:3px;border-radius:4px;background:#62e79b;box-shadow:0 0 12px #62e79b}
+    .camera-overlay-state{position:absolute;top:9px;left:9px;z-index:5;background:rgba(12,24,17,.78);color:#fff;border-radius:999px;padding:6px 9px;font-size:.7rem;font-weight:900;display:flex;gap:6px;align-items:center;backdrop-filter:blur(6px)}
+    .camera-overlay-state .dot{width:8px;height:8px;border-radius:50%;background:#ffd25e}
+    .camera-overlay-state.ready .dot{background:#65e89e}
+    .reader-state{padding:11px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:#fff;border-top:1px solid var(--line)}
+    .reader-message{display:flex;gap:10px;align-items:center;min-width:0}
+    .reader-icon{width:35px;height:35px;border-radius:10px;background:var(--soft);display:grid;place-items:center;flex:0 0 auto}
+    .reader-message strong{display:block;font-size:.88rem}
+    .reader-message span{display:block;color:var(--muted);font-size:.73rem;margin-top:1px}
+    .reader-action{min-height:42px;border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:8px 10px;color:var(--text);font-weight:850;cursor:pointer}
+
+    .last-card{margin-top:9px;padding:12px;box-shadow:none;border-width:1px}
+    .last-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:900}
+    .last-main{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:4px}
+    .last-name{font-size:1.07rem;font-weight:950;line-height:1.15}
+    .last-meta{font-size:.77rem;color:var(--muted);margin-top:3px}
+    .success-mark{width:38px;height:38px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center}
+    .last-actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+    .obs-action{min-height:50px;border:1px solid #e7c583;background:var(--amber-soft);color:var(--amber);border-radius:11px;font-weight:900;cursor:pointer}
+    .undo-action{min-height:50px;min-width:94px;border:1px solid var(--line);background:var(--soft);color:var(--text);border-radius:11px;font-weight:850;cursor:pointer}
+
+    .quick-actions{display:grid;grid-template-columns:1fr;gap:7px;margin-top:9px}
+    .finish-bin{min-height:56px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:13px;font-weight:950;cursor:pointer}
+    .manual-fallback{text-align:center;margin:3px 0 0}
+    .techline{display:flex;justify-content:center;gap:12px;align-items:center;color:var(--muted);font-size:.69rem;min-height:26px;padding-bottom:4px}
+    .techline span{display:flex;gap:5px;align-items:center}
+    .techline .ok{color:var(--green)}
+    .techline .off{color:var(--amber)}
+
+    .attention{position:fixed;z-index:80;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 8px);max-width:696px;margin:auto;padding:13px;border:1px solid #e4c17a;background:#fff8e8;border-radius:14px;box-shadow:0 12px 34px rgba(51,39,13,.18)}
+    .attention strong{display:flex;align-items:center;gap:7px;color:#8e5907}
+    .attention p{margin:5px 0 9px;font-size:.8rem;color:#755727;line-height:1.35}
+
+    /* Modales */
+    .modal{position:fixed;inset:0;z-index:100;background:rgba(13,26,18,.54);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+    .sheet{width:100%;max-width:720px;max-height:94dvh;background:var(--card);border-radius:20px 20px 0 0;display:flex;flex-direction:column;box-shadow:0 -18px 40px rgba(0,0,0,.18);overflow:hidden}
+    .sheet-head{padding:14px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;flex:0 0 auto}
+    .sheet-head h2{font-size:1.06rem;margin:0}
+    .sheet-head p{font-size:.75rem;color:var(--muted);margin:2px 0 0}
+    .sheet-body{overflow:auto;overscroll-behavior:contain;padding:13px 14px;flex:1 1 auto;min-height:0}
+    .sheet-foot{flex:0 0 auto;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);display:grid;gap:8px}
+    .close-btn{width:42px;height:42px;border:0;border-radius:11px;background:var(--soft);color:var(--text);display:grid;place-items:center;cursor:pointer}
+    .choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .choice{min-height:62px;text-align:left;border:2px solid var(--line);border-radius:12px;background:var(--soft);color:var(--text);padding:10px 11px;font-weight:850;cursor:pointer;line-height:1.2}
+    .choice.selected{border-color:var(--amber);background:var(--amber-soft);color:#815107}
+    .worker-list{display:grid;gap:8px}
+    .worker-row{padding:11px;border:1px solid var(--line);border-radius:12px;background:#fff;display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center}
+    .worker-row .name{font-weight:900}
+    .worker-row .code{font-size:.72rem;color:var(--muted);margin-top:2px}
+    .worker-actions{display:flex;gap:6px}
+    .worker-actions button{min-height:48px;border-radius:10px;border:1px solid var(--line);padding:8px 10px;font-weight:850;cursor:pointer}
+    .worker-actions .reg{background:var(--green);color:#fff;border-color:var(--green)}
+    .worker-actions .ob{background:var(--amber-soft);color:var(--amber);border-color:#e8ca93}
+    .menu-list{display:grid;gap:7px}
+    .menu-item{width:100%;min-height:54px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);padding:10px 12px;text-align:left;font-weight:850;cursor:pointer;display:flex;gap:10px;align-items:center}
+    .menu-item.danger{color:var(--red);border-color:#edcaca;background:var(--red-soft)}
+    .divider{height:1px;background:var(--line);margin:6px 0}
+    .people-admin{display:grid;gap:8px;margin-top:12px}
+    .person-admin{padding:10px;border:1px solid var(--line);border-radius:11px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .person-admin button{border:0;background:var(--red-soft);color:var(--red);min-height:42px;border-radius:9px;padding:8px 10px;font-weight:800}
+    .add-worker{display:grid;grid-template-columns:1fr 130px;gap:8px;margin-top:8px}
+    .add-worker .btn{grid-column:1/-1}
+    .summary-list{display:grid;gap:7px}
+    .summary-row{display:flex;justify-content:space-between;gap:12px;padding:9px 10px;background:var(--soft);border-radius:10px;font-size:.83rem}
+
+    .toast{position:fixed;z-index:140;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);width:min(calc(100% - 28px),500px);background:#14251b;color:white;border-radius:12px;padding:11px 13px;text-align:center;font-weight:850;font-size:.82rem;opacity:0;pointer-events:none;transition:.2s ease;box-shadow:0 10px 28px rgba(0,0,0,.22)}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    @media(max-width:520px){
+      .app{padding-left:9px;padding-right:9px}.topbar{height:52px}.topbar .subtitle{display:none}
+      .session-strip{margin-bottom:7px}.camera-frame{height:min(33dvh,245px);min-height:185px}
+      .reader-state{padding:9px 10px}.last-card{margin-top:7px;padding:10px}.quick-actions{margin-top:7px}
+      .choice-grid{grid-template-columns:1fr}.setup-grid{grid-template-columns:1fr 1fr}.sheet{max-height:100dvh;border-radius:0}
+      .worker-row{grid-template-columns:1fr}.worker-actions{display:grid;grid-template-columns:1fr 1fr}.worker-actions button{width:100%}
+    }
+    @media(max-height:690px) and (max-width:520px){
+      .topbar{height:46px}.camera-frame{height:30dvh;min-height:165px}.session-strip{padding:8px 10px}
+      .reader-icon{display:none}.last-actions{margin-top:7px}.last-card{padding:9px}.finish-bin{min-height:51px}.techline{min-height:21px}
+    }
+  </style>
 </head>
-
 <body>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
-    <div id="ft-app">
-        <style>
-            #ft-app {
-                --bg: light-dark(#f3f7f4, #0f1712);
-                --card: light-dark(#fff, #18221c);
-                --soft: light-dark(#edf4ef, #223027);
-                --text: light-dark(#183124, #eff7f1);
-                --muted: light-dark(#69786f, #a7b7ad);
-                --line: light-dark(#d9e5dd, #34443a);
-                --green: #247a4d;
-                --warn: #b66d05;
-                --red: #b33f3f;
-                background: var(--bg);
-                color: var(--text);
-                font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-                padding: 16px;
-                border-radius: 0;
-                min-height: 700px
-            }
-
-            #ft-app * {
-                box-sizing: border-box
-            }
-
-            #ft-app .bi {
-                font-size: 1.05em;
-                line-height: 1;
-                vertical-align: -.08em
-            }
-
-            #ft-app button .bi {
-                margin-right: 7px
-            }
-
-            #ft-app .entry-mode button .bi {
-                font-size: 1.15rem;
-                margin-right: 8px
-            }
-
-            #ft-app .icon-only .bi {
-                margin-right: 0
-            }
-
-            #ft-app button,
-            #ft-app input,
-            #ft-app select {
-                font: inherit
-            }
-
-            #ft-app .wrap {
-                max-width: 1150px;
-                margin: auto
-            }
-
-            #ft-app header {
-                display: flex;
-                justify-content: space-between;
-                gap: 12px;
-                align-items: center;
-                flex-wrap: wrap;
-                margin-bottom: 14px
-            }
-
-            #ft-app h2,
-            #ft-app h3 {
-                margin: 0
-            }
-
-            #ft-app .brand {
-                display: flex;
-                gap: 10px;
-                align-items: center
-            }
-
-            #ft-app .logo {
-                width: 42px;
-                height: 42px;
-                border-radius: 12px;
-                background: #247a4d;
-                color: white;
-                display: grid;
-                place-items: center;
-                font-weight: 900
-            }
-
-            #ft-app .muted {
-                color: var(--muted);
-                font-size: .84rem
-            }
-
-            #ft-app .tabs {
-                display: flex;
-                padding: 5px;
-                border: 1px solid var(--line);
-                background: var(--card);
-                border-radius: 13px
-            }
-
-            #ft-app .tabs button,
-            #ft-app .subnav button {
-                border: 0;
-                background: transparent;
-                color: var(--muted);
-                padding: 9px 12px;
-                border-radius: 9px;
-                min-height: 44px;
-                font-weight: 800;
-                cursor: pointer
-            }
-
-            #ft-app .tabs button.on,
-            #ft-app .subnav button.on {
-                background: var(--green);
-                color: white
-            }
-
-            #ft-app .card {
-                background: var(--card);
-                border: 1px solid var(--line);
-                border-radius: 15px;
-                padding: 14px
-            }
-
-            #ft-app .grid {
-                display: grid;
-                gap: 12px
-            }
-
-            #ft-app .g2 {
-                grid-template-columns: repeat(2, minmax(0, 1fr))
-            }
-
-            #ft-app .g3 {
-                grid-template-columns: repeat(3, minmax(0, 1fr))
-            }
-
-            #ft-app .g4 {
-                grid-template-columns: repeat(4, minmax(0, 1fr))
-            }
-
-            #ft-app .setup {
-                display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-                gap: 9px
-            }
-
-            #ft-app label {
-                font-size: .78rem;
-                font-weight: 800;
-                color: var(--muted);
-                display: grid;
-                gap: 5px
-            }
-
-            #ft-app input,
-            #ft-app select {
-                min-height: 48px;
-                width: 100%;
-                border: 1px solid var(--line);
-                border-radius: 10px;
-                padding: 9px;
-                background: var(--card);
-                color: var(--text);
-                font-size: 16px
-            }
-
-            #ft-app .btn {
-                border: 0;
-                border-radius: 10px;
-                min-height: 48px;
-                padding: 10px 14px;
-                background: var(--soft);
-                color: var(--text);
-                font-weight: 850;
-                cursor: pointer
-            }
-
-            #ft-app .primary {
-                background: var(--green);
-                color: #fff
-            }
-
-            #ft-app .danger {
-                background: var(--red);
-                color: #fff
-            }
-
-            #ft-app .warn {
-                background: color-mix(in srgb, var(--warn) 13%, var(--card));
-                color: var(--warn);
-                border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line))
-            }
-
-            #ft-app .actions {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-                margin-top: 10px
-            }
-
-            #ft-app .kpi span {
-                font-size: .78rem;
-                color: var(--muted)
-            }
-
-            #ft-app .kpi strong {
-                display: block;
-                font-size: 1.55rem;
-                margin-top: 3px
-            }
-
-            #ft-app .workers {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 9px
-            }
-
-            #ft-app .worker {
-                background: var(--card);
-                border: 1px solid var(--line);
-                border-radius: 13px;
-                padding: 13px
-            }
-
-            #ft-app .wh {
-                display: flex;
-                justify-content: space-between;
-                gap: 8px;
-                margin-bottom: 10px;
-                align-items: center
-            }
-
-            #ft-app .name {
-                font-weight: 900;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap
-            }
-
-            #ft-app .count {
-                font-size: 1.45rem;
-                font-weight: 950
-            }
-
-            #ft-app .wa {
-                display: grid;
-                grid-template-columns: 1fr 112px;
-                gap: 8px
-            }
-
-            #ft-app .plus {
-                border: 0;
-                border-radius: 11px;
-                background: var(--green);
-                color: white;
-                min-height: 58px;
-                font-weight: 900;
-                cursor: pointer;
-                font-size: 1rem
-            }
-
-            #ft-app .obs {
-                border: 2px solid color-mix(in srgb, var(--warn) 45%, var(--line));
-                border-radius: 11px;
-                background: color-mix(in srgb, var(--warn) 10%, var(--card));
-                color: var(--warn);
-                min-height: 58px;
-                font-weight: 900;
-                cursor: pointer;
-                font-size: .95rem
-            }
-
-            #ft-app .tag {
-                display: inline-block;
-                border-radius: 99px;
-                padding: 4px 7px;
-                font-size: .72rem;
-                font-weight: 850;
-                background: var(--soft);
-                margin-top: 7px
-            }
-
-            #ft-app .tag.bad {
-                color: var(--warn)
-            }
-
-            #ft-app .alert {
-                border-left: 4px solid var(--warn);
-                padding: 9px;
-                background: color-mix(in srgb, var(--warn) 8%, var(--card));
-                border-radius: 9px;
-                margin-bottom: 7px;
-                font-size: .84rem
-            }
-
-            #ft-app .hidden {
-                display: none !important
-            }
-
-            #ft-app .obsbox {
-                margin-top: 12px;
-                border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
-                border-radius: 14px;
-                padding: 12px;
-                background: var(--card)
-            }
-
-            #ft-app .choices {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 8px;
-                margin: 10px 0
-            }
-
-            #ft-app .choice {
-                border: 1px solid var(--line);
-                background: var(--soft);
-                color: var(--text);
-                min-height: 54px;
-                border-radius: 10px;
-                text-align: left;
-                padding: 10px;
-                font-weight: 800;
-                cursor: pointer
-            }
-
-            #ft-app .choice.sel {
-                outline: 3px solid var(--warn)
-            }
-
-            #ft-app .subnav {
-                display: flex;
-                gap: 6px;
-                overflow: auto;
-                margin-bottom: 12px
-            }
-
-            #ft-app .subnav button {
-                border: 1px solid var(--line);
-                background: var(--card);
-                white-space: nowrap;
-                border-radius: 99px
-            }
-
-            #ft-app .table {
-                overflow: auto;
-                border: 1px solid var(--line);
-                border-radius: 11px
-            }
-
-            #ft-app table {
-                width: 100%;
-                border-collapse: collapse;
-                min-width: 690px;
-                background: var(--card);
-                font-size: .82rem
-            }
-
-            #ft-app th,
-            #ft-app td {
-                padding: 9px;
-                border-bottom: 1px solid var(--line);
-                text-align: left
-            }
-
-            #ft-app th {
-                background: var(--soft);
-                color: var(--muted);
-                font-size: .72rem
-            }
-
-            #ft-app .barrow {
-                display: grid;
-                grid-template-columns: 145px 1fr 35px;
-                gap: 7px;
-                align-items: center;
-                margin: 9px 0;
-                font-size: .8rem
-            }
-
-            #ft-app .bar {
-                height: 9px;
-                background: var(--soft);
-                border-radius: 99px;
-                overflow: hidden
-            }
-
-            #ft-app .bar i {
-                height: 100%;
-                display: block;
-                background: var(--green)
-            }
-
-            #ft-app .ins {
-                padding: 10px;
-                border-left: 4px solid #3978a8;
-                background: color-mix(in srgb, #3978a8 8%, var(--card));
-                border-radius: 9px;
-                font-size: .84rem
-            }
-
-            #ft-app .filters {
-                display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 9px;
-                margin-bottom: 12px
-            }
-
-            #ft-app .timeline {
-                overflow: auto
-            }
-
-            #ft-app .tl {
-                min-width: 760px
-            }
-
-            #ft-app .axis,
-            #ft-app .tlrow {
-                display: grid;
-                grid-template-columns: 120px 1fr
-            }
-
-            .axis div:last-child {
-                display: grid;
-                grid-template-columns: repeat(7, 1fr);
-                font-size: .7rem;
-                color: var(--muted)
-            }
-
-            #ft-app .tlrow {
-                min-height: 40px;
-                align-items: center;
-                border-top: 1px solid var(--line)
-            }
-
-            #ft-app .track {
-                height: 28px;
-                position: relative;
-                background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.285% - 1px), var(--line) calc(14.285% - 1px), var(--line) 14.285%)
-            }
-
-            #ft-app .dot {
-                position: absolute;
-                top: 50%;
-                width: 8px;
-                height: 8px;
-                background: var(--green);
-                border-radius: 50%;
-                transform: translate(-50%, -50%)
-            }
-
-            #ft-app .dot.o {
-                width: 12px;
-                height: 12px;
-                background: var(--warn);
-                outline: 2px solid var(--card)
-            }
-
-            #ft-app .people {
-                margin-top: 9px;
-                display: grid;
-                gap: 6px
-            }
-
-            #ft-app .prow {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 8px;
-                background: var(--soft);
-                border-radius: 9px;
-                gap: 10px
-            }
-
-            #ft-app details.demo {
-                margin-top: 10px;
-                border-top: 1px solid var(--line);
-                padding-top: 8px
-            }
-
-            #ft-app details.demo summary {
-                cursor: pointer;
-                color: var(--muted);
-                font-size: .82rem;
-                font-weight: 800;
-                padding: 8px 0
-            }
-
-            #ft-app .field-end {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
-                margin-top: 12px
-            }
-
-            #ft-app .field-end .btn {
-                min-height: 56px
-            }
-
-            #ft-app .entry-mode {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 6px;
-                padding: 5px;
-                background: var(--soft);
-                border-radius: 13px;
-                margin: 10px 0
-            }
-
-            #ft-app .entry-mode button {
-                min-height: 50px;
-                border: 0;
-                border-radius: 10px;
-                background: transparent;
-                color: var(--muted);
-                font-weight: 900;
-                cursor: pointer
-            }
-
-            #ft-app .entry-mode button.on {
-                background: var(--green);
-                color: #fff
-            }
-
-            #ft-app .scan-card {
-                border: 1px solid var(--line);
-                border-radius: 14px;
-                padding: 12px;
-                background: var(--card)
-            }
-
-            #ft-app .camera-frame {
-                position: relative;
-                overflow: hidden;
-                border-radius: 14px;
-                background: #111;
-                aspect-ratio: 4/3;
-                display: grid;
-                place-items: center
-            }
-
-            #ft-app .camera-viewport {
-                position: absolute;
-                inset: 0;
-                overflow: hidden;
-                background: #111
-            }
-
-            #ft-app .camera-viewport video,
-            #ft-app .camera-viewport canvas {
-                position: absolute !important;
-                inset: 0;
-                width: 100% !important;
-                height: 100% !important;
-                object-fit: cover !important
-            }
-
-            #ft-app .camera-viewport canvas.drawingBuffer {
-                display: none !important
-            }
-
-            #ft-app .camera-placeholder {
-                position: absolute;
-                z-index: 3;
-                inset: 0;
-                display: grid;
-                place-items: center;
-                text-align: center;
-                color: #fff;
-                padding: 26px;
-                background: linear-gradient(180deg, rgba(0, 0, 0, .20), rgba(0, 0, 0, .58));
-                font-weight: 800
-            }
-
-            #ft-app .scan-guide {
-                position: absolute;
-                z-index: 4;
-                left: 10%;
-                right: 10%;
-                top: 35%;
-                height: 30%;
-                border: 3px solid rgba(255, 255, 255, .9);
-                border-radius: 14px;
-                box-shadow: 0 0 0 999px rgba(0, 0, 0, .18);
-                pointer-events: none
-            }
-
-            #ft-app .scan-guide:after {
-                content: '';
-                position: absolute;
-                left: 8%;
-                right: 8%;
-                top: 50%;
-                height: 2px;
-                background: #6ee7a7;
-                box-shadow: 0 0 8px #6ee7a7
-            }
-
-            #ft-app .scan-status {
-                margin-top: 10px;
-                padding: 10px 11px;
-                border-radius: 10px;
-                background: var(--soft);
-                font-size: .88rem;
-                line-height: 1.35
-            }
-
-            #ft-app .scan-status.ok {
-                border-left: 4px solid var(--green)
-            }
-
-            #ft-app .scan-status.warn {
-                border-left: 4px solid var(--warn)
-            }
-
-            #ft-app .scan-result {
-                margin-top: 10px;
-                padding: 12px;
-                border: 2px solid color-mix(in srgb, var(--green) 45%, var(--line));
-                border-radius: 12px;
-                background: color-mix(in srgb, var(--green) 8%, var(--card))
-            }
-
-            #ft-app .scan-result strong {
-                display: block;
-                font-size: 1.05rem
-            }
-
-            #ft-app .barcode-test {
-                margin-top: 10px;
-                border-top: 1px solid var(--line);
-                padding-top: 8px
-            }
-
-            #ft-app .barcode-test summary {
-                cursor: pointer;
-                color: var(--muted);
-                font-size: .82rem;
-                font-weight: 800;
-                padding: 6px 0
-            }
-
-            #ft-app .barcode-row {
-                display: grid;
-                grid-template-columns: 1fr auto;
-                gap: 8px;
-                margin-top: 8px
-            }
-
-            #ft-app .person-code {
-                display: block;
-                color: var(--muted);
-                font-size: .76rem;
-                margin-top: 2px
-            }
-
-            #ft-app .toast {
-                position: sticky;
-                bottom: 10px;
-                max-width: 430px;
-                margin: 10px auto 0;
-                padding: 10px;
-                background: var(--text);
-                color: var(--card);
-                border-radius: 10px;
-                text-align: center;
-                font-weight: 800;
-                display: none
-            }
-
-            #ft-app .toast.show {
-                display: block
-            }
-
-            @media(max-width:760px) {
-                #ft-app {
-                    padding: 11px
-                }
-
-                #ft-app .g2,
-                #ft-app .g3 {
-                    grid-template-columns: 1fr
-                }
-
-                #ft-app .g4 {
-                    grid-template-columns: repeat(2, 1fr)
-                }
-
-                #ft-app .setup {
-                    grid-template-columns: repeat(2, 1fr)
-                }
-
-                #ft-app .filters {
-                    grid-template-columns: 1fr
-                }
-
-                #ft-app .workers {
-                    grid-template-columns: 1fr
-                }
-
-                #ft-app .tabs {
-                    flex: 1
-                }
-
-                #ft-app .tabs button {
-                    flex: 1
-                }
-            }
-
-            @media(max-width:420px) {
-
-                #ft-app .setup,
-                #ft-app .choices {
-                    grid-template-columns: 1fr
-                }
-
-                #ft-app .field-end {
-                    grid-template-columns: 1fr
-                }
-
-                #ft-app .wa {
-                    grid-template-columns: 1fr 104px
-                }
-
-                #ft-app .barcode-row {
-                    grid-template-columns: 1fr
-                }
-            }
-
-            /* Endpoint/role presentation */
-            #ft-app .role-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                min-height: 42px;
-                padding: 8px 12px;
-                border: 1px solid var(--line);
-                background: var(--card);
-                border-radius: 12px;
-                color: var(--muted);
-                font-weight: 850;
-                font-size: .86rem
-            }
-
-            #ft-app .role-badge .bi {
-                color: var(--green);
-                font-size: 1rem
-            }
-
-            /* Observation is a real modal: avoids content being pushed below the camera on phones */
-            body.frutura-obs-open {
-                overflow: hidden !important;
-                touch-action: none
-            }
-
-            #ft-app .obsbox {
-                position: fixed;
-                z-index: 3000;
-                left: 50%;
-                top: 50%;
-                transform: translate(-50%, -50%);
-                width: min(620px, calc(100vw - 24px));
-                max-height: calc(100dvh - 24px);
-                overflow-y: auto;
-                overscroll-behavior: contain;
-                margin: 0 !important;
-                border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
-                border-radius: 16px;
-                padding: 16px;
-                background: var(--card);
-                box-shadow: 0 24px 70px rgba(0, 0, 0, .34)
-            }
-
-            #ft-app .obsbox::before {
-                content: '';
-                position: fixed;
-                inset: 0;
-                background: rgba(8, 16, 11, .50);
-                z-index: -1;
-                pointer-events: none
-            }
-
-            #ft-app .obsbox .actions {
-                position: sticky;
-                bottom: -16px;
-                z-index: 2;
-                margin: 12px -16px -16px;
-                padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-                background: var(--card);
-                border-top: 1px solid var(--line);
-                box-shadow: 0 -8px 18px rgba(0, 0, 0, .06)
-            }
-
-            #ft-app .obsbox .actions .btn {
-                flex: 1;
-                min-height: 54px
-            }
-
-            @media(max-width:600px) {
-                #ft-app .obsbox {
-                    left: 0;
-                    top: 0;
-                    transform: none;
-                    width: 100vw;
-                    height: 100dvh;
-                    max-height: 100dvh;
-                    border-radius: 0;
-                    border: 0;
-                    padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
-                }
-
-                #ft-app .obsbox .choices {
-                    grid-template-columns: 1fr;
-                    gap: 9px;
-                    margin-bottom: 92px
-                }
-
-                #ft-app .obsbox .choice {
-                    min-height: 58px;
-                    font-size: 1rem
-                }
-
-                #ft-app .obsbox .actions {
-                    bottom: calc(-18px - env(safe-area-inset-bottom));
-                    margin-left: -14px;
-                    margin-right: -14px;
-                    margin-bottom: calc(-18px - env(safe-area-inset-bottom));
-                    padding-left: 14px;
-                    padding-right: 14px
-                }
-            }
-
-            #ft-app #admin {
-                display: none !important
-            }
-        </style>
-        <div class="wrap">
-            <header>
-                <div class="brand">
-                    <div>
-                        <h2>Trazabilidad de cosecha</h2>
-                        <div class="muted">Prototipo móvil · datos demo</div>
-                    </div>
-                </div>
-                <div class="role-badge"><i class="bi bi-person-badge" aria-hidden="true"></i>Encargado de cuadrilla
-                </div>
-            </header>
-            <section id="field">
-                <div class="card">
-                    <h3>Preparar jornada</h3>
-                    <div class="muted" style="margin-top:4px">Completá estos datos una sola vez antes de comenzar.</div>
-                    <div class="setup" style="margin-top:10px"><label>Cuadrilla<select id="crew">
-                                <option>Cuadrilla 04</option>
-                                <option>Cuadrilla 07</option>
-                            </select></label><label>Cuadra<input id="lot"
-                                value="Cuadra 14"></label><label>Variedad<select id="var">
-                                <option>Mandarina Afourer</option>
-                                <option>Mandarina Murcott</option>
-                            </select></label><label>Primer bin<input id="bin" value="BIN-0042"></label></div>
-                    <div class="actions"><button class="btn primary" id="start"><i class="bi bi-play-circle"
-                                aria-hidden="true"></i>Comenzar jornada</button><button class="btn" id="peopleBtn"><i
-                                class="bi bi-people" aria-hidden="true"></i>Editar recolectores</button></div>
-                    <div id="peoplePanel" class="hidden">
-                        <div class="muted" style="margin-top:10px">Agregá o quitá integrantes antes de iniciar la
-                            cosecha.</div>
-                        <div class="actions"><input id="newName" placeholder="Nombre del recolector"
-                                style="max-width:290px"><input id="newCode" inputmode="numeric"
-                                placeholder="Código de credencial" style="max-width:210px"><button class="btn"
-                                id="add">Agregar recolector</button></div>
-                        <div id="people" class="people"></div>
-                    </div>
-                    <details class="demo">
-                        <summary>Opciones de demostración</summary>
-                        <div class="actions"><button class="btn" id="newDay">Preparar jornada vacía</button><button
-                                class="btn warn" id="resetDemo">Restaurar datos de ejemplo</button></div>
-                    </details>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px">
-                    <div class="card kpi"><span>Bin en uso</span><strong id="binK"
-                            style="font-size:1.15rem">BIN-0042</strong>
-                        <div class="muted" id="fieldContext">Cuadrilla 04 · Cuadra 14</div>
-                    </div>
-                    <div class="card kpi"><span>Vuelcos registrados</span><strong id="bags">0</strong>
-                        <div class="muted">Hora guardada automáticamente</div>
-                    </div>
-                </div>
-                <div id="fieldAlert" class="card hidden" style="margin-top:12px;border-left:4px solid var(--warn)">
-                    <strong><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Requiere atención</strong>
-                    <div id="fieldAlertText" class="muted" style="margin-top:4px"></div>
-                    <div class="actions"><button class="btn" id="dismissAlert">Entendido</button></div>
-                </div>
-                <div class="card" style="margin-top:12px">
-                    <h3>Registrar cosecha</h3>
-                    <div class="muted" style="margin:4px 0 6px">La cámara es el modo predeterminado. Centrá el código de
-                        la credencial en el recuadro; si la cámara no está disponible, usá el registro manual.</div>
-                    <div class="entry-mode" role="tablist" aria-label="Modo de registro"><button class="on"
-                            data-entry="camera" type="button"><i class="bi bi-camera"
-                                aria-hidden="true"></i>Cámara</button><button data-entry="manual" type="button"><i
-                                class="bi bi-hand-index" aria-hidden="true"></i>Manual</button></div>
-                    <div id="cameraPanel">
-                        <div class="scan-card">
-                            <div class="camera-frame">
-                                <div id="cameraViewport" class="camera-viewport"
-                                    aria-label="Vista de cámara para escaneo"></div>
-                                <div class="scan-guide" aria-hidden="true"></div>
-                                <div id="cameraPlaceholder" class="camera-placeholder">Apuntá la cámara al código de
-                                    barras de la credencial del recolector.</div>
-                            </div>
-                            <div id="scanStatus" class="scan-status">Comenzá la jornada y activá la cámara. Al reconocer
-                                una credencial, el vuelco se registra automáticamente.</div>
-                            <div class="actions"><button class="btn primary" id="cameraToggle" type="button"><i
-                                        class="bi bi-camera-video" aria-hidden="true"></i>Activar cámara</button></div>
-                            <div id="scanResult" class="scan-result hidden"><strong id="scanResultName"></strong><span
-                                    id="scanResultMeta" class="muted"></span></div><button class="btn warn hidden"
-                                id="addObsLast" type="button" style="width:100%;margin-top:8px"><i
-                                    class="bi bi-exclamation-circle" aria-hidden="true"></i>Agregar observación al
-                                último vuelco</button>
-                            <details class="barcode-test">
-                                <summary>Probar un código sin cámara</summary>
-                                <div class="muted">Útil para la demo en una computadora sin acceso a cámara.</div>
-                                <div class="barcode-row"><input id="barcodeTest" inputmode="numeric"
-                                        placeholder="Ej.: 367379"><button class="btn" id="barcodeTestBtn"
-                                        type="button">Registrar código</button></div>
-                            </details>
-                        </div>
-                    </div>
-                    <div id="manualPanel" class="hidden">
-                        <div class="muted" style="margin:4px 0 10px">Tocá el recolector correspondiente. Usá
-                            “Observación” solo cuando corresponda.</div>
-                        <div id="workers" class="workers"></div>
-                    </div>
-                    <div class="field-end"><button class="btn" id="nextBin"><i class="bi bi-box-arrow-right"
-                                aria-hidden="true"></i>Finalizar este bin</button><button class="btn danger" id="end"><i
-                                class="bi bi-stop-circle" aria-hidden="true"></i>Finalizar jornada</button></div>
-                </div>
-                <div id="obsbox" class="obsbox hidden">
-                    <div><strong id="obsTitle">Observación</strong>
-                        <div class="muted">Marcá uno o más motivos y guardá el vuelco.</div>
-                    </div>
-                    <div id="choices" class="choices"></div>
-                    <div class="actions"><button class="btn warn" id="saveObs">Guardar observación y
-                            vuelco</button><button class="btn" id="cancelObs">Cancelar</button></div>
-                </div>
-                <div id="daySummary" class="card hidden" style="margin-top:12px">
-                    <h3>Jornada finalizada</h3>
-                    <div id="daySummaryData" class="people" style="margin-top:9px"></div>
-                    <div class="actions"><button class="btn primary" id="summaryNewDay">Preparar nueva jornada</button>
-                    </div>
-                </div>
-            </section>
-            <section id="admin" class="hidden">
-                <div class="subnav"><button class="on" data-panel="summary">Resumen</button><button
-                        data-panel="traceability">Trazabilidad</button><button data-panel="hr">Capital
-                        Humano</button><button data-panel="quality">Calidad</button><button data-panel="timeline">Línea
-                        de tiempo</button></div>
-                <div class="card" style="margin-bottom:12px">
-                    <h3>Filtros de análisis</h3>
-                    <div class="muted">Los datos se pueden revisar por cuadrilla, cuadra y bin.</div>
-                    <div class="filters" style="margin-top:10px"><label>Cuadrilla<select id="fCrew">
-                                <option value="all">Todas</option>
-                            </select></label><label>Cuadra<select id="fLot">
-                                <option value="all">Todos</option>
-                            </select></label><label>Bin<select id="fBin">
-                                <option value="all">Todos</option>
-                            </select></label></div>
-                </div>
-                <div id="summary" class="panel">
-                    <div class="grid g4">
-                        <div class="card kpi"><span>Vuelcos filtrados</span><strong id="abags"></strong></div>
-                        <div class="card kpi"><span>Ritmo estimado</span><strong id="arate"></strong></div>
-                        <div class="card kpi"><span>Observaciones</span><strong id="aobs"></strong></div>
-                        <div class="card kpi"><span>Bins incluidos</span><strong id="abins"></strong></div>
-                    </div>
-                    <div class="grid g2" style="margin-top:12px">
-                        <div class="card">
-                            <h3>Lecturas automáticas</h3>
-                            <div id="insights" class="grid" style="margin-top:9px"></div>
-                        </div>
-                        <div class="card">
-                            <h3>Contexto seleccionado</h3>
-                            <div id="trace" class="people" style="margin-top:9px"></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="traceability" class="panel hidden">
-                    <div class="grid g3">
-                        <div class="card">
-                            <h3>Por cuadrilla</h3>
-                            <div id="byCrew" class="people"></div>
-                        </div>
-                        <div class="card">
-                            <h3>Por cuadra</h3>
-                            <div id="byLot" class="people"></div>
-                        </div>
-                        <div class="card">
-                            <h3>Por bin</h3>
-                            <div id="byBin" class="people"></div>
-                        </div>
-                    </div>
-                    <div class="card" style="margin-top:12px">
-                        <h3>Detalle de bins</h3>
-                        <div class="table" style="margin-top:10px">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Bin</th>
-                                        <th>Cuadrilla</th>
-                                        <th>Cuadra</th>
-                                        <th>Variedad</th>
-                                        <th>Vuelcos</th>
-                                        <th>Observables</th>
-                                        <th>Recolectores</th>
-                                        <th>Cámara</th>
-                                        <th>Horario</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="binBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div id="hr" class="panel hidden">
-                    <div class="card">
-                        <h3>Capital Humano</h3>
-                        <div class="muted">Comparación dentro del contexto elegido en los filtros.</div>
-                        <div class="table" style="margin-top:10px">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Recolector</th>
-                                        <th>Vuelcos</th>
-                                        <th>Vuelcos/h</th>
-                                        <th>Mediana entre vuelcos</th>
-                                        <th>Observables</th>
-                                        <th>Rendimiento vs. promedio</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="hrbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div id="quality" class="panel hidden">
-                    <div class="grid g2">
-                        <div class="card">
-                            <h3>Motivos observados</h3>
-                            <div id="reasons" style="margin-top:8px"></div>
-                        </div>
-                        <div class="card">
-                            <h3>Señales de calidad</h3>
-                            <div id="signals" class="grid" style="margin-top:9px"></div>
-                        </div>
-                    </div>
-                    <div class="card" style="margin-top:12px">
-                        <h3>Recolectores con mayor porcentaje observable</h3>
-                        <div id="qworkers" class="people" style="margin-top:8px"></div>
-                    </div>
-                </div>
-                <div id="timeline" class="panel hidden">
-                    <div class="card">
-                        <h3>Línea de tiempo de la cosecha</h3>
-                        <div class="muted">Respeta los filtros elegidos. Punto pequeño = vuelco normal · punto grande =
-                            observado.</div>
-                        <div class="timeline" style="margin-top:10px">
-                            <div id="tl" class="tl"></div>
-                        </div>
-                        <div id="tlins" class="grid" style="margin-top:10px"></div>
-                    </div>
-                </div>
-            </section>
-            <div id="toast" class="toast"></div>
-        </div>
-        <script>(() => {
-                const r = document.getElementById('ft-app'), $ = s => r.querySelector(s), $$ = s => [...r.querySelectorAll(s)]; if (r.dataset.init) return; r.dataset.init = 1; const rs = [['ped', 'Tallo / pedúnculo largo', 'handling'], ['gol', 'Golpeada / machucada', 'handling'], ['cut', 'Daño de corte / tijera', 'handling'], ['skin', 'Cáscara dañada', 'handling'], ['mat', 'Color / madurez', 'fruit'], ['leaf', 'Hojas o ramas', 'handling'], ['pest', 'Plaga / enfermedad', 'fruit'], ['rot', 'Podredumbre / deterioro', 'fruit'], ['other', 'Otro', 'other']], demoNames = [['Nazareno Rosales Curbelo', '367379'], ['Ana Silva', '367380'], ['Pedro Gómez', '367381'], ['Carlos Rodríguez', '367382'], ['Lucía Méndez', '367383'], ['Martín Sosa', '367384'], ['Rosa Pereira', '367385'], ['Diego Núñez', '367386'], ['María López', '367387'], ['Sergio Cabrera', '367388']]; let ws = [], ev = [], next = 11, sel = null, sr = new Set(), active = true, binNo = 42, lastFieldAlert = '', editingEventIndex = null, lastCameraEventIndex = null, quaggaRunning = false, quaggaInitialized = false, quaggaHandlersBound = false, scanLocked = false, lockedCode = '', lastSeenAt = 0, entryMode = 'camera', observationOpen = false; const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])), obs = a => a.filter(e => e.o.length), pct = (n, d) => d ? Math.round(n / d * 1000) / 10 : 0, time = d => d.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), toast = m => { let x = $('#toast'); x.textContent = m; x.classList.add('show'); clearTimeout(toast.x); toast.x = setTimeout(() => x.classList.remove('show'), 1800) }, ctx = () => ({ crew: $('#crew').value, lot: $('#lot').value || 'Sin cuadra', bin: $('#bin').value || 'Sin bin', var: $('#var').value }), fctx = () => ({ crew: $('#fCrew')?.value || 'all', lot: $('#fLot')?.value || 'all', bin: $('#fBin')?.value || 'all' }), filtered = () => { let f = fctx(); return ev.filter(e => (f.crew === 'all' || e.crew === f.crew) && (f.lot === 'all' || e.lot === f.lot) && (f.bin === 'all' || e.bin === f.bin)) }, eventsFor = (id, data = ev) => data.filter(e => e.w === id).sort((a, b) => a.t - b.t), dataSpan = data => { if (data.length < 2) return .5; let ts = data.map(e => e.t.getTime()); return Math.max((Math.max(...ts) - Math.min(...ts)) / 36e5, .5) }, rateFor = (id, data) => eventsFor(id, data).length / dataSpan(data), gapFor = (id, data) => { let a = eventsFor(id, data); if (a.length < 2) return null; let g = []; for (let i = 1; i < a.length; i++)g.push((a[i].t - a[i - 1].t) / 6e4); g.sort((a, b) => a - b); let n = g.length; return n % 2 ? g[(n - 1) / 2] : (g[n / 2 - 1] + g[n / 2]) / 2 }, unique = (data, key) => [...new Set(data.map(e => e[key]))]; const STORAGE_KEY = 'frutura_state_v2';
-                function saveState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ workers: ws, events: ev.map(e => ({ ...e, t: e.t instanceof Date ? e.t.toISOString() : e.t })), next, binNo, active, crew: $('#crew')?.value || 'Cuadrilla 04', lot: $('#lot')?.value || 'Cuadra 14', vari: $('#var')?.value || 'Mandarina Afourer', bin: $('#bin')?.value || 'BIN-0042' })) } catch (e) { } }
-                function loadState() { try { let raw = localStorage.getItem(STORAGE_KEY); if (!raw) return false; let st = JSON.parse(raw); if (!Array.isArray(st.workers) || !Array.isArray(st.events)) return false; ws = st.workers; ev = st.events.map(e => ({ ...e, t: new Date(e.t) })); next = st.next || Math.max(0, ...ws.map(w => w.id || 0)) + 1; binNo = st.binNo || 42; active = st.active !== false; if ($('#crew')) $('#crew').value = st.crew || 'Cuadrilla 04'; if ($('#lot')) $('#lot').value = st.lot || 'Cuadra 14'; if ($('#var')) $('#var').value = st.vari || 'Mandarina Afourer'; if ($('#bin')) $('#bin').value = st.bin || 'BIN-0042'; syncFilters(); return true } catch (e) { return false } }
-                function addSeedEvent(w, d, o, crew, lot, bin, vari, source = 'camera') { ev.push({ w: w.id, t: d, o, crew, lot, bin, var: vari, source, barcode: w.code || null }) } function seedDemo() { ws = demoNames.map((x, i) => ({ id: i + 1, n: x[0], code: x[1] })); ev = []; next = 11; binNo = 42; lastFieldAlert = ''; $('#crew').value = 'Cuadrilla 04'; $('#lot').value = 'Cuadra 14'; $('#var').value = 'Mandarina Afourer'; $('#bin').value = 'BIN-0042'; for (let round = 0; round < 6; round++)ws.forEach((w, i) => { let d = new Date(); d.setHours(7 + Math.floor((round * 34 + i * 3) / 60), (round * 34 + i * 3) % 60, 0, 0); let o = (round * 10 + i) % 14 === 4 ? [rs[(round + i) % 6][0]] : []; addSeedEvent(w, d, o, 'Cuadrilla 04', 'Cuadra 14', round < 3 ? 'BIN-0041' : 'BIN-0042', 'Mandarina Afourer') }); for (let round = 0; round < 3; round++)ws.slice(0, 7).forEach((w, i) => { let d = new Date(); d.setHours(10 + Math.floor((round * 36 + i * 4) / 60), (round * 36 + i * 4) % 60, 0, 0); let o = (round * 7 + i) % 9 === 2 ? ['mat'] : []; addSeedEvent(w, d, o, 'Cuadrilla 04', 'Cuadra 15', 'BIN-0043', 'Mandarina Murcott') }); ws.slice(3).forEach((w, i) => { let d = new Date(); d.setHours(12, 5 + i * 5, 0, 0); addSeedEvent(w, d, i % 4 === 0 ? ['gol'] : [], 'Cuadrilla 07', 'Cuadra 18', 'BIN-0068', 'Mandarina Afourer') }); active = true; $('#daySummary').classList.add('hidden'); $('#fieldAlert').classList.add('hidden'); syncFilters() } function maybeFieldAlert(id) { let recent = eventsFor(id).slice(-10), n = obs(recent).length, w = ws.find(x => x.id === id); if (recent.length >= 5 && n >= 3) { lastFieldAlert = `${w.n}: ${n} de los últimos ${recent.length} vuelcos fueron observados. Informar al supervisor.`; $('#fieldAlertText').textContent = lastFieldAlert; $('#fieldAlert').classList.remove('hidden'); return } let c = {}; obs(ev).forEach(e => e.o.forEach(o => c[o] = (c[o] || 0) + 1)); let top = Object.entries(c).sort((a, b) => b[1] - a[1])[0]; if (top && top[1] >= 5) { let msg = `Se repite “${rs.find(x => x[0] === top[0])[1]}” (${top[1]} casos). Informar al supervisor.`; if (msg !== lastFieldAlert) { lastFieldAlert = msg; $('#fieldAlertText').textContent = msg; $('#fieldAlert').classList.remove('hidden') } } } function addEvent(id, o = [], source = 'manual', barcode = null) { if (!active) { toast('Primero tocá “Comenzar jornada”'); return null } let c = ctx(), idx = ev.push({ w: id, t: new Date(), o: [...o], crew: c.crew, lot: c.lot, bin: c.bin, var: c.var, source, barcode }) - 1; syncFilters(); render(); if (o.length) maybeFieldAlert(id); toast(`${ws.find(w => w.id === id)?.n || 'Recolector'} · ${o.length ? 'observación y vuelco guardados' : 'vuelco guardado'} · ${time(new Date()).slice(0, 5)}`); return idx } function alerts(data) { let a = []; ws.forEach(w => { let x = eventsFor(w.id, data).slice(-10), n = obs(x).length; if (x.length >= 5 && n >= 3) a.push(`${w.n}: ${n} de sus últimos ${x.length} vuelcos fueron observados.`) }); let p = pct(obs(data).length, data.length); if (p >= 8) a.push(`El ${p}% de los vuelcos filtrados presentan observaciones.`); return a } function openObs(id, eventIndex = null) { if (!active) { toast('Primero tocá “Comenzar jornada”'); return } sel = id; editingEventIndex = eventIndex; sr.clear(); if (eventIndex !== null && ev[eventIndex]) ev[eventIndex].o.forEach(x => sr.add(x)); $('#obsTitle').textContent = (eventIndex !== null ? 'Agregar observación · ' : 'Observación · ') + ws.find(w => w.id === id).n; observationOpen = true; document.body.classList.add('frutura-obs-open'); $('#obsbox').classList.remove('hidden'); renderChoices(); $('#obsbox').scrollTop = 0 } function closeObservation() { observationOpen = false; document.body.classList.remove('frutura-obs-open'); $('#obsbox').classList.add('hidden') } function renderChoices() { $('#choices').innerHTML = rs.map(x => `<button class="choice ${sr.has(x[0]) ? 'sel' : ''}" data-r="${x[0]}">${x[1]}</button>`).join(''); $$('[data-r]').forEach(b => b.onclick = () => { sr.has(b.dataset.r) ? sr.delete(b.dataset.r) : sr.add(b.dataset.r); renderChoices() }) } function workers() { $('#workers').innerHTML = ws.map(w => { let a = eventsFor(w.id); return `<div class="worker"><div class="wh"><div class="name">${esc(w.n)}</div><div style="text-align:right"><div class="count">${a.length}</div><div class="muted">vuelcos</div></div></div><div class="wa"><button class="plus" data-plus="${w.id}"><i class="bi bi-check-circle" aria-hidden="true"></i>Registrar vuelco</button><button class="obs" data-o="${w.id}"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Observación</button></div></div>` }).join(''); $$('[data-plus]').forEach(b => b.onclick = () => addEvent(+b.dataset.plus, [], 'manual', ws.find(w => w.id === +b.dataset.plus)?.code || null)); $$('[data-o]').forEach(b => b.onclick = () => openObs(+b.dataset.o)) } function people() { $('#people').innerHTML = ws.map(w => `<div class="prow"><span><strong>${esc(w.n)}</strong><span class="person-code">Código: ${esc(w.code || 'sin asociar')}</span></span><button class="btn" data-del="${w.id}">Quitar</button></div>`).join(''); $$('[data-del]').forEach(b => b.onclick = () => { let id = +b.dataset.del; if (eventsFor(id).length) { toast('No se puede quitar: ya tiene registros'); return } ws = ws.filter(w => w.id !== id); render() }) } function showDaySummary() { let currentCrew = $('#crew').value, data = ev.filter(e => e.crew === currentCrew), bins = unique(data, 'bin').length, times = data.map(e => e.t).sort((a, b) => a - b), range = times.length ? `${time(times[0]).slice(0, 5)} → ${time(times[times.length - 1]).slice(0, 5)}` : 'Sin registros'; $('#daySummaryData').innerHTML = [['Cuadrilla', currentCrew], ['Cuadras', unique(data, 'lot').join(', ') || '—'], ['Vuelcos', data.length], ['Bins utilizados', bins], ['Recolectores', new Set(data.map(e => e.w)).size], ['Vuelcos observados', `${obs(data).length} · ${pct(obs(data).length, data.length)}%`], ['Horario', range]].map(x => `<div class="prow"><span class="muted">${x[0]}</span><strong>${x[1]}</strong></div>`).join(''); $('#daySummary').classList.remove('hidden'); $('#daySummary').scrollIntoView({ behavior: 'smooth', block: 'nearest' }) } function newDay() { stopCamera(); ev = []; active = false; binNo = 1; lastFieldAlert = ''; $('#bin').value = 'BIN-0001'; $('#daySummary').classList.add('hidden'); $('#obsbox').classList.add('hidden'); $('#fieldAlert').classList.add('hidden'); syncFilters(); render(); toast('Jornada vacía preparada') } function syncFilters() { let vals = [['fCrew', 'crew', 'Todas'], ['fLot', 'lot', 'Todos'], ['fBin', 'bin', 'Todos']]; vals.forEach(([id, key, label]) => { let s = $('#' + id); if (!s) return; let old = s.value, arr = unique(ev, key).sort(); s.innerHTML = `<option value="all">${label}</option>` + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join(''); if (arr.includes(old)) s.value = old }) } function groupCards(data, key, label) { let groups = {}; data.forEach(e => (groups[e[key]] ??= []).push(e)); let entries = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])); return entries.length ? entries.map(([name, a]) => `<div class="prow"><span><strong>${esc(name)}</strong><br><span class="muted">${a.length} vuelcos · ${new Set(a.map(e => e.w)).size} recolectores</span></span><strong>${pct(obs(a).length, a.length)}% obs.</strong></div>`).join('') : `<div class="muted">Sin ${label} para los filtros elegidos.</div>` } function timeline(data) { let start = 420, end = 840, html = '<div class="axis"><div></div><div>' + ['07', '08', '09', '10', '11', '12', '13'].map(x => `<span>${x}</span>`).join('') + '</div></div>'; ws.filter(w => eventsFor(w.id, data).length).forEach(w => { let dots = eventsFor(w.id, data).map(e => { let m = e.t.getHours() * 60 + e.t.getMinutes(), l = Math.max(0, Math.min(100, (m - start) / (end - start) * 100)); return `<i class="dot ${e.o.length ? 'o' : ''}" style="left:${l}%" title="${time(e.t)} · ${e.bin} · ${e.lot}"></i>` }).join(''); html += `<div class="tlrow"><div class="name">${esc(w.n)}</div><div class="track">${dots}</div></div>` }); $('#tl').innerHTML = html; let bh = {}, oh = {}; data.forEach(e => bh[e.t.getHours()] = (bh[e.t.getHours()] || 0) + 1); obs(data).forEach(e => oh[e.t.getHours()] = (oh[e.t.getHours()] || 0) + 1); let vals = Object.entries(bh), av = vals.reduce((s, x) => s + x[1], 0) / Math.max(vals.length, 1), low = vals.filter(x => x[1] < av * .75).sort((a, b) => a[1] - b[1])[0], high = Object.entries(oh).sort((a, b) => b[1] - a[1])[0], ins = []; if (!data.length) ins.push('No hay registros para los filtros seleccionados.'); if (low) ins.push(`Caída relativa de actividad cerca de las ${String(low[0]).padStart(2, '0')}:00.`); if (high) ins.push(`Mayor concentración de observaciones alrededor de las ${String(high[0]).padStart(2, '0')}:00.`); if (data.length) ins.push(`${unique(data, 'crew').length} cuadrilla(s), ${unique(data, 'lot').length} cuadra(s) y ${unique(data, 'bin').length} bin(s) incluidos.`); $('#tlins').innerHTML = ins.map(x => `<div class="ins">${x}</div>`).join('') } function admin() { let data = filtered(), p = pct(obs(data).length, data.length), sp = dataSpan(data), ranked = ws.map(w => ({ w, r: rateFor(w.id, data), p: pct(obs(eventsFor(w.id, data)).length, eventsFor(w.id, data).length), g: gapFor(w.id, data), n: eventsFor(w.id, data).length })).filter(x => x.n).sort((a, b) => b.r - a.r), avg = ranked.reduce((s, x) => s + x.r, 0) / Math.max(ranked.length, 1); $('#abags').textContent = data.length; $('#arate').textContent = (data.length / sp).toFixed(1) + '/h'; $('#aobs').textContent = p + '%'; $('#abins').textContent = unique(data, 'bin').length; $('#hrbody').innerHTML = ranked.length ? ranked.map(x => `<tr><td><strong>${esc(x.w.n)}</strong></td><td>${x.n}</td><td>${x.r.toFixed(1)}</td><td>${x.g ? x.g.toFixed(1) + ' min' : '—'}</td><td>${x.p}%</td><td>${avg ? `${x.r >= avg ? '+' : ''}${((x.r - avg) / avg * 100).toFixed(0)}%` : '—'}</td></tr>`).join('') : '<tr><td colspan="6">Sin datos para estos filtros.</td></tr>'; let cnt = {}; obs(data).forEach(e => e.o.forEach(o => cnt[o] = (cnt[o] || 0) + 1)); let re = rs.map(x => ({ x, n: cnt[x[0]] || 0 })).filter(z => z.n).sort((a, b) => b.n - a.n), tot = Math.max(1, re.reduce((s, z) => s + z.n, 0)); $('#reasons').innerHTML = re.length ? re.map(z => `<div class="barrow"><span>${z.x[1]}</span><div class="bar"><i style="width:${z.n / tot * 100}%"></i></div><strong>${z.n}</strong></div>`).join('') : '<div class="muted">Sin observaciones registradas.</div>'; let hand = data.filter(e => e.o.some(o => rs.find(x => x[0] === o)?.[2] === 'handling')).length, fruit = data.filter(e => e.o.some(o => rs.find(x => x[0] === o)?.[2] === 'fruit')).length; $('#signals').innerHTML = `<div class="ins">Posible manipulación/cosecha: <strong>${hand}</strong> vuelcos.</div><div class="ins">Posible condición de fruta/cuadra: <strong>${fruit}</strong> vuelcos.</div><div class="ins">La lectura cambia automáticamente según cuadrilla, cuadra y bin seleccionados.</div>`; $('#qworkers').innerHTML = ranked.length ? [...ranked].sort((a, b) => b.p - a.p).slice(0, 5).map(x => `<div class="prow"><span><strong>${esc(x.w.n)}</strong><br><span class="muted">${obs(eventsFor(x.w.id, data)).length} de ${x.n} vuelcos</span></span><strong>${x.p}%</strong></div>`).join('') : '<div class="muted">Sin datos.</div>'; let top = ranked[0], bottom = ranked[ranked.length - 1], topReason = re[0]?.x[1] || 'Sin observaciones', ins = data.length ? [`Mayor ritmo relativo: ${top?.w.n || '—'} (${top?.r.toFixed(1) || 0} vuelcos/h).`, `Menor ritmo relativo: ${bottom?.w.n || '—'} (${bottom?.r.toFixed(1) || 0} vuelcos/h).`, `Defecto más frecuente: ${topReason}.`, `Observables en el contexto seleccionado: ${p}%.`] : ['No hay datos para los filtros seleccionados.']; $('#insights').innerHTML = ins.map(x => `<div class="ins">${x}</div>`).join(''); let f = fctx(); $('#trace').innerHTML = [['Cuadrilla', f.crew === 'all' ? 'Todas' : f.crew], ['Cuadra', f.lot === 'all' ? 'Todos' : f.lot], ['Bin', f.bin === 'all' ? 'Todos' : f.bin], ['Variedades', unique(data, 'var').join(', ') || '—'], ['Vuelcos', data.length], ['Recolectores', new Set(data.map(e => e.w)).size], ['Observables', p + '%'], ['Origen de registro', `${data.filter(e => e.source === 'camera').length} cámara · ${data.filter(e => e.source !== 'camera').length} manual`]].map(x => `<div class="prow"><span class="muted">${x[0]}</span><strong>${x[1]}</strong></div>`).join(''); $('#byCrew').innerHTML = groupCards(data, 'crew', 'cuadrillas'); $('#byLot').innerHTML = groupCards(data, 'lot', 'cuadras'); $('#byBin').innerHTML = groupCards(data, 'bin', 'bins'); let bins = {}; data.forEach(e => (bins[e.bin] ??= []).push(e)); $('#binBody').innerHTML = Object.entries(bins).sort((a, b) => a[0].localeCompare(b[0])).map(([bin, a]) => { let t = a.map(e => e.t).sort((x, y) => x - y); return `<tr><td><strong>${esc(bin)}</strong></td><td>${esc(a[0].crew)}</td><td>${esc(a[0].lot)}</td><td>${esc(a[0].var)}</td><td>${a.length}</td><td>${pct(obs(a).length, a.length)}%</td><td>${new Set(a.map(e => e.w)).size}</td><td>${pct(a.filter(e => e.source === 'camera').length, a.length)}%</td><td>${time(t[0]).slice(0, 5)}–${time(t[t.length - 1]).slice(0, 5)}</td></tr>` }).join('') || '<tr><td colspan="9">Sin bins para estos filtros.</td></tr>'; timeline(data) } let audioCtx = null; function initAudioFeedback() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume() } catch (e) { } } function playScanBeep() { try { initAudioFeedback(); if (!audioCtx) return; let now = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(880, now); g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(.11, now + .008); g.gain.exponentialRampToValueAtTime(.0001, now + .09); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now + .095) } catch (e) { } } function normalizeBarcode(v) { return String(v || '').trim().replace(/\s+/g, '') } function setScanStatus(msg, type = '') { let x = $('#scanStatus'); x.textContent = msg; x.className = 'scan-status' + (type ? ' ' + type : '') } function showScanResult(w, code) { $('#scanResultName').innerHTML = '<i class="bi bi-check-circle-fill" aria-hidden="true"></i> ' + esc(w.n); $('#scanResultMeta').textContent = `Código ${code} · vuelco registrado · ${time(new Date()).slice(0, 5)}`; $('#scanResult').classList.remove('hidden'); $('#addObsLast').classList.remove('hidden') } function findWorkerByBarcode(code) { let c = normalizeBarcode(code); return ws.find(w => normalizeBarcode(w.code) === c) } function handleBarcode(raw) { let code = normalizeBarcode(raw); if (!code) return; let w = findWorkerByBarcode(code); scanLocked = true; lockedCode = code; lastSeenAt = Date.now(); if (!w) { setScanStatus(`Código ${code} no asociado a ningún recolector. Usá “Editar recolectores” o el modo Manual.`, 'warn'); return } let idx = addEvent(w.id, [], 'camera', code); if (idx === null) return; playScanBeep(); lastCameraEventIndex = idx; showScanResult(w, code); setScanStatus(`Registrado. Retirá la credencial de ${w.n} para continuar.`, 'ok') } function quaggaDetected(result) { if (!quaggaRunning || observationOpen) return; let code = normalizeBarcode(result?.codeResult?.code); if (!code) return; let now = Date.now(); if (scanLocked && code === lockedCode) { lastSeenAt = now; return } if (scanLocked && code !== lockedCode) { scanLocked = false; lockedCode = '' } handleBarcode(code) } function quaggaProcessed() { if (!quaggaRunning || !scanLocked) return; if (Date.now() - lastSeenAt > 1800) { scanLocked = false; lockedCode = ''; setScanStatus('Listo para escanear la siguiente credencial.', 'ok') } } function bindQuaggaHandlers() { if (quaggaHandlersBound || !window.Quagga) return; Quagga.onDetected(quaggaDetected); Quagga.onProcessed(quaggaProcessed); quaggaHandlersBound = true } function cameraErrorMessage(err) { let name = err?.name || ''; if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return 'No se concedió permiso para usar la cámara. Habilitalo en los permisos del navegador y volvé a intentar.'; if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'No se encontró una cámara disponible en este dispositivo.'; if (name === 'NotReadableError' || name === 'TrackStartError') return 'La cámara está ocupada o no pudo iniciarse. Cerrá otras aplicaciones que puedan estar usándola e intentá nuevamente.'; if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') return 'La cámara disponible no cumple con la configuración solicitada. Probá nuevamente o usá el modo Manual.'; if (!window.isSecureContext) return 'La cámara requiere una conexión segura HTTPS. Abrí la aplicación desde su dirección web publicada.'; return 'No fue posible iniciar la cámara. Revisá los permisos del navegador o utilizá el registro Manual.' } function startCamera() { initAudioFeedback(); if (quaggaRunning) return; if (!active) { toast('Primero tocá “Comenzar jornada”'); return } if (!window.Quagga) { setScanStatus('No se pudo cargar el lector de códigos. Revisá la conexión a Internet y recargá la página.', 'warn'); return } if (!navigator.mediaDevices?.getUserMedia) { setScanStatus('Este navegador no ofrece acceso compatible a la cámara. Usá el modo Manual.', 'warn'); return } if (!window.isSecureContext) { setScanStatus('La cámara requiere HTTPS. Abrí la aplicación desde la dirección web publicada.', 'warn'); return } let target = $('#cameraViewport'); target.innerHTML = ''; setScanStatus('Solicitando acceso a la cámara…'); bindQuaggaHandlers(); try { Quagga.init({ inputStream: { name: 'Live', type: 'LiveStream', target: target, constraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, area: { top: '18%', right: '8%', left: '8%', bottom: '18%' } }, locator: { patchSize: 'medium', halfSample: true }, decoder: { readers: ['code_128_reader', 'code_39_reader', 'codabar_reader', 'i2of5_reader'] }, locate: true, frequency: 10 }, err => { if (err) { quaggaRunning = false; quaggaInitialized = false; $('#cameraPlaceholder').classList.remove('hidden'); setScanStatus(cameraErrorMessage(err), 'warn'); return } quaggaInitialized = true; try { Quagga.start(); quaggaRunning = true; $('#cameraPlaceholder').classList.add('hidden'); $('#cameraToggle').innerHTML = '<i class="bi bi-camera-video-off" aria-hidden="true"></i>Detener cámara'; setScanStatus('Cámara activa. Centrá el código de barras dentro del recuadro.', 'ok') } catch (e) { quaggaRunning = false; setScanStatus(cameraErrorMessage(e), 'warn') } }) } catch (e) { quaggaRunning = false; quaggaInitialized = false; setScanStatus(cameraErrorMessage(e), 'warn') } } function stopCamera() { if (window.Quagga && (quaggaRunning || quaggaInitialized)) { try { Quagga.stop() } catch (e) { } } quaggaRunning = false; quaggaInitialized = false; let target = $('#cameraViewport'); if (target) target.innerHTML = ''; $('#cameraPlaceholder').classList.remove('hidden'); $('#cameraToggle').innerHTML = '<i class="bi bi-camera-video" aria-hidden="true"></i>Activar cámara'; scanLocked = false; lockedCode = ''; setScanStatus('Cámara detenida. Podés volver a activarla cuando quieras.') } function setEntryMode(mode) { entryMode = mode; $$('[data-entry]').forEach(b => b.classList.toggle('on', b.dataset.entry === mode)); $('#cameraPanel').classList.toggle('hidden', mode !== 'camera'); $('#manualPanel').classList.toggle('hidden', mode !== 'manual'); if (mode === 'manual') stopCamera(); else if (active) startCamera() } function render() { $('#bags').textContent = ev.filter(e => e.crew === $('#crew').value).length; $('#binK').textContent = ctx().bin; $('#fieldContext').textContent = `${$('#crew').value} · ${ctx().lot}`; workers(); people(); admin(); saveState() } function goManagement() { } $$('[data-mode]').forEach(b => b.onclick = () => { $$('[data-mode]').forEach(x => x.classList.toggle('on', x === b)); let a = b.dataset.mode === 'admin'; if (a) stopCamera(); $('#field').classList.toggle('hidden', a); $('#admin').classList.toggle('hidden', !a); if (a) syncFilters(); render() }); $$('[data-panel]').forEach(b => b.onclick = () => { $$('[data-panel]').forEach(x => x.classList.toggle('on', x === b)); $$('.panel').forEach(x => x.classList.add('hidden')); $('#' + b.dataset.panel).classList.remove('hidden'); render() }); $$('[data-entry]').forEach(b => b.onclick = () => setEntryMode(b.dataset.entry)); $('#cameraToggle').onclick = () => quaggaRunning ? stopCamera() : startCamera(); $('#barcodeTestBtn').onclick = () => { initAudioFeedback(); if (!active) { toast('Primero tocá “Comenzar jornada”'); return } let code = normalizeBarcode($('#barcodeTest').value); if (!code) { toast('Ingresá un código'); return } handleBarcode(code); $('#barcodeTest').value = '' }; $('#addObsLast').onclick = () => { if (lastCameraEventIndex === null || !ev[lastCameraEventIndex]) { toast('No hay un vuelco escaneado reciente'); return } openObs(ev[lastCameraEventIndex].w, lastCameraEventIndex) }; $('#peopleBtn').onclick = () => $('#peoplePanel').classList.toggle('hidden'); $('#add').onclick = () => { let n = $('#newName').value.trim(), code = normalizeBarcode($('#newCode').value); if (n.length < 2) { toast('Ingresá un nombre válido'); return } if (!code) { toast('Ingresá el código de la credencial'); return } if (findWorkerByBarcode(code)) { toast('Ese código ya está asociado'); return } ws.push({ id: next++, n, code }); $('#newName').value = ''; $('#newCode').value = ''; render(); toast('Recolector agregado') }; $('#start').onclick = () => { active = true; $('#daySummary').classList.add('hidden'); render(); toast('Jornada lista para registrar'); if (entryMode === 'camera') startCamera() }; $('#newDay').onclick = newDay; $('#summaryNewDay').onclick = newDay; $('#resetDemo').onclick = () => { stopCamera(); seedDemo(); render(); setEntryMode('camera'); toast('Datos de ejemplo restaurados') }; $('#nextBin').onclick = () => { if (!active) { toast('Primero comenzá la jornada'); return } binNo++; $('#bin').value = 'BIN-' + String(binNo).padStart(4, '0'); render(); toast('Bin cerrado · nuevo bin preparado') }; $('#end').onclick = () => { if (!active) { toast('La jornada ya está finalizada'); return } stopCamera(); active = false; saveState(); showDaySummary(); toast('Jornada finalizada') }; $('#dismissAlert').onclick = () => $('#fieldAlert').classList.add('hidden'); $('#cancelObs').onclick = () => { closeObservation(); editingEventIndex = null }; $('#saveObs').onclick = () => { if (!sr.size) { toast('Seleccioná al menos una observación'); return } let id = sel, o = [...sr]; closeObservation(); if (editingEventIndex !== null && ev[editingEventIndex]) { ev[editingEventIndex].o = o; maybeFieldAlert(id); syncFilters(); render(); toast('Observación agregada al vuelco escaneado') } else addEvent(id, o, 'manual', ws.find(w => w.id === id)?.code || null); editingEventIndex = null };['lot', 'bin'].forEach(id => $('#' + id).oninput = render); $('#crew').onchange = render; $('#var').onchange = render;['fCrew', 'fLot', 'fBin'].forEach(id => $('#' + id).onchange = render); if (!loadState()) seedDemo(); renderChoices(); render()
-            })();</script>
+<div class="app" id="app">
+  <header class="topbar">
+    <div>
+      <h1>Trazabilidad de cosecha</h1>
+      <div class="subtitle">Registro operativo de campo</div>
     </div>
-</body>
+    <button class="icon-btn" id="menuBtn" aria-label="Opciones" title="Opciones"><i class="bi bi-three-dots-vertical"></i></button>
+  </header>
 
+  <main>
+    <section id="setupView" class="card setup">
+      <h2>Preparar jornada</h2>
+      <div class="muted small">Completá estos datos una sola vez. Al comenzar, la cámara se activa automáticamente.</div>
+      <div class="setup-grid">
+        <label>Cuadrilla
+          <select id="crew"><option>Cuadrilla 04</option><option>Cuadrilla 07</option></select>
+        </label>
+        <label>Cuadra
+          <input id="lot" value="Cuadra 14" autocomplete="off">
+        </label>
+        <label>Variedad
+          <select id="var"><option>Mandarina Afourer</option><option>Mandarina Murcott</option></select>
+        </label>
+        <label>Primer bin
+          <input id="bin" value="BIN-0042" autocomplete="off">
+        </label>
+      </div>
+      <div class="setup-actions">
+        <button class="btn btn-secondary full" id="peopleBtn"><i class="bi bi-people"></i>Gestionar recolectores</button>
+        <button class="btn btn-primary full" id="startBtn"><i class="bi bi-play-circle"></i>Comenzar jornada</button>
+      </div>
+      <div class="prep-note"><i class="bi bi-info-circle"></i> Después de comenzar, esta configuración se oculta.</div>
+    </section>
+
+    <section id="workView" class="hidden">
+      <div class="card session-strip">
+        <div class="session-main">
+          <div class="session-title" id="sessionTitle">Cuadrilla 04 · Cuadra 14</div>
+          <div class="session-sub" id="sessionSub">Mandarina Afourer · BIN-0042</div>
+        </div>
+        <div class="session-kpi"><strong id="bagCount">0</strong><span>vuelcos</span></div>
+      </div>
+
+      <div class="card camera-card">
+        <div class="camera-frame">
+          <div id="cameraViewport" aria-label="Vista de cámara para leer códigos de barras"></div>
+          <div id="cameraPlaceholder" class="camera-placeholder"><div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Activando cámara…</div></div>
+          <div class="scan-guide"></div>
+          <div id="cameraBadge" class="camera-overlay-state"><span class="dot"></span><span>PREPARANDO</span></div>
+        </div>
+        <div class="reader-state">
+          <div class="reader-message">
+            <div class="reader-icon"><i id="readerIcon" class="bi bi-upc-scan"></i></div>
+            <div><strong id="readerTitle">Preparando lector</strong><span id="readerDetail">La cámara se iniciará automáticamente.</span></div>
+          </div>
+          <button id="cameraToggle" class="reader-action"><i class="bi bi-camera-video"></i></button>
+        </div>
+      </div>
+
+      <div id="lastCard" class="card last-card">
+        <div class="last-label">Último registro</div>
+        <div class="last-main">
+          <div>
+            <div id="lastName" class="last-name">Aún no hay vuelcos</div>
+            <div id="lastMeta" class="last-meta">El último recolector leído aparecerá acá.</div>
+          </div>
+          <div id="lastMark" class="success-mark hidden"><i class="bi bi-check-lg"></i></div>
+        </div>
+        <div id="lastActions" class="last-actions hidden">
+          <button id="observationLastBtn" class="obs-action"><i class="bi bi-exclamation-circle"></i> Observación</button>
+          <button id="undoBtn" class="undo-action"><i class="bi bi-arrow-counterclockwise"></i> Deshacer</button>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button id="finishBinBtn" class="finish-bin"><i class="bi bi-box-arrow-right"></i> Finalizar <span id="finishBinText">BIN-0042</span></button>
+        <div class="manual-fallback"><button id="manualBtn" class="btn-link"><i class="bi bi-hand-index"></i> ¿No se puede leer la credencial? Registrar manualmente</button></div>
+      </div>
+
+      <div class="techline" aria-live="polite">
+        <span id="cameraTech"><i class="bi bi-camera-video"></i> cámara</span>
+        <span id="storageTech" class="ok"><i class="bi bi-device-ssd"></i> datos guardados</span>
+        <span id="networkTech"><i class="bi bi-wifi"></i> conexión</span>
+      </div>
+    </section>
+
+    <section id="summaryView" class="card setup hidden">
+      <h2>Jornada finalizada</h2>
+      <div class="muted small">La carga quedó cerrada. Los registros permanecen disponibles para Gestión.</div>
+      <div id="summaryData" class="summary-list" style="margin-top:14px"></div>
+      <div class="setup-actions"><button id="newDayBtn" class="btn btn-primary full"><i class="bi bi-calendar-plus"></i>Preparar nueva jornada</button></div>
+    </section>
+  </main>
+</div>
+
+<div id="attention" class="attention hidden">
+  <strong><i class="bi bi-exclamation-triangle-fill"></i> Atención de calidad</strong>
+  <p id="attentionText"></p>
+  <button id="dismissAttention" class="btn btn-secondary full">Entendido</button>
+</div>
+
+<!-- Observaciones -->
+<div id="observationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="obsTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div><h2 id="obsTitle">Registrar observación</h2><p id="obsSubtitle">Seleccioná uno o más motivos.</p></div>
+      <button class="close-btn" id="obsClose" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="sheet-body"><div id="choiceGrid" class="choice-grid"></div></div>
+    <div class="sheet-foot">
+      <button id="saveObservationBtn" class="btn btn-warning full"><i class="bi bi-check-circle"></i>Guardar observación</button>
+      <button id="cancelObservationBtn" class="btn btn-secondary full">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual -->
+<div id="manualModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div><h2>Registro manual</h2><p>Usalo únicamente cuando no sea posible leer la credencial.</p></div>
+      <button class="close-btn" id="manualClose" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="sheet-body"><div id="manualWorkers" class="worker-list"></div></div>
+  </div>
+</div>
+
+<!-- Menú -->
+<div id="menuModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet" style="max-height:78dvh">
+    <div class="sheet-head"><div><h2>Opciones de jornada</h2><p>Acciones de uso ocasional.</p></div><button class="close-btn" id="menuClose"><i class="bi bi-x-lg"></i></button></div>
+    <div class="sheet-body">
+      <div class="menu-list">
+        <button class="menu-item" id="editSessionBtn"><i class="bi bi-pencil-square"></i>Editar datos de jornada</button>
+        <button class="menu-item" id="managePeopleBtn"><i class="bi bi-people"></i>Gestionar recolectores</button>
+        <button class="menu-item" id="menuCameraBtn"><i class="bi bi-camera-video-off"></i>Detener cámara</button>
+        <div class="divider"></div>
+        <button class="menu-item danger" id="endDayBtn"><i class="bi bi-stop-circle"></i>Finalizar jornada</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Editar jornada -->
+<div id="sessionModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><div><h2>Datos de jornada</h2><p>Los nuevos vuelcos usarán estos datos.</p></div><button class="close-btn" id="sessionClose"><i class="bi bi-x-lg"></i></button></div>
+    <div class="sheet-body">
+      <div class="setup-grid">
+        <label>Cuadrilla<select id="editCrew"><option>Cuadrilla 04</option><option>Cuadrilla 07</option></select></label>
+        <label>Cuadra<input id="editLot"></label>
+        <label>Variedad<select id="editVar"><option>Mandarina Afourer</option><option>Mandarina Murcott</option></select></label>
+        <label>Bin<input id="editBin"></label>
+      </div>
+    </div>
+    <div class="sheet-foot"><button id="saveSessionBtn" class="btn btn-primary full"><i class="bi bi-check-lg"></i>Guardar cambios</button></div>
+  </div>
+</div>
+
+<!-- Recolectores -->
+<div id="peopleModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><div><h2>Recolectores</h2><p>Nombre y código de credencial.</p></div><button class="close-btn" id="peopleClose"><i class="bi bi-x-lg"></i></button></div>
+    <div class="sheet-body">
+      <div class="add-worker"><input id="newWorkerName" placeholder="Nombre completo"><input id="newWorkerCode" inputmode="numeric" placeholder="Código"><button id="addWorkerBtn" class="btn btn-primary">Agregar recolector</button></div>
+      <div id="peopleList" class="people-admin"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmar cierre -->
+<div id="confirmEndModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet" style="max-height:55dvh">
+    <div class="sheet-head"><div><h2>Finalizar jornada</h2><p>Esta acción detendrá la cámara y cerrará la carga.</p></div><button class="close-btn" id="endClose"><i class="bi bi-x-lg"></i></button></div>
+    <div class="sheet-body"><div class="prep-note" style="margin:0;color:#7d3131;background:var(--red-soft)"><i class="bi bi-exclamation-triangle"></i> Después de finalizar no se podrán registrar más vuelcos hasta preparar una nueva jornada.</div></div>
+    <div class="sheet-foot"><button id="confirmEndBtn" class="btn btn-danger full"><i class="bi bi-stop-circle"></i>Sí, finalizar jornada</button><button id="cancelEndBtn" class="btn btn-secondary full">Cancelar</button></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(()=>{
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const STORAGE_KEY='frutura_state_v2';
+  const reasons=[
+    ['ped','Tallo / pedúnculo largo'],['gol','Golpeada / machucada'],['cut','Daño de corte / tijera'],
+    ['skin','Cáscara dañada'],['mat','Color / madurez'],['leaf','Hojas o ramas'],
+    ['pest','Plaga / enfermedad'],['rot','Podredumbre / deterioro'],['other','Otro']
+  ];
+  const defaultWorkers=[
+    ['Nazareno Rosales Curbelo','367379'],['Ana Silva','367380'],['Pedro Gómez','367381'],['Carlos Rodríguez','367382'],
+    ['Lucía Méndez','367383'],['Martín Sosa','367384'],['Rosa Pereira','367385'],['Diego Núñez','367386'],
+    ['María López','367387'],['Sergio Cabrera','367388']
+  ];
+
+  let workers=[],events=[],nextWorkerId=11,binNo=42,active=false;
+  let quaggaRunning=false,quaggaInitialized=false,quaggaBound=false;
+  let scanLockCode='',scanLastSeen=0,scanPausedUntil=0;
+  let recentCodeTimes=new Map();
+  let modalDepth=0,observationWorkerId=null,observationEventId=null,selectedReasons=new Set();
+  let lastEventId=null,undoTimer=null,audioCtx=null,wakeLock=null;
+
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const normalize=v=>String(v??'').trim().replace(/\s+/g,'');
+  const nowTime=d=>d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const ctx=()=>({crew:$('#crew').value,lot:$('#lot').value.trim()||'Sin cuadra',vari:$('#var').value,bin:$('#bin').value.trim()||'Sin bin'});
+  const currentEvents=()=>events;
+  const workerById=id=>workers.find(w=>w.id===id);
+  const workerByCode=code=>workers.find(w=>normalize(w.code)===normalize(code));
+  const eventById=id=>events.find(e=>e.eid===id);
+  const uid=()=>`e_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+
+  function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1800)}
+  function setBodyModal(open){modalDepth+=open?1:-1;modalDepth=Math.max(0,modalDepth);document.body.classList.toggle('modal-open',modalDepth>0)}
+  function openModal(el){if(!el.classList.contains('hidden'))return;el.classList.remove('hidden');setBodyModal(true)}
+  function closeModal(el){if(el.classList.contains('hidden'))return;el.classList.add('hidden');setBodyModal(false)}
+
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY,JSON.stringify({
+        workers,events:events.map(e=>({...e,t:e.t instanceof Date?e.t.toISOString():e.t})),
+        next:nextWorkerId,binNo,active,crew:$('#crew').value,lot:$('#lot').value,vari:$('#var').value,bin:$('#bin').value
+      }));
+      $('#storageTech').className='ok';
+    }catch(e){$('#storageTech').className='off'}
+  }
+  function loadState(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY); if(!raw)return false;
+      const s=JSON.parse(raw); if(!Array.isArray(s.workers)||!Array.isArray(s.events))return false;
+      workers=s.workers; events=s.events.map(e=>({...e,t:new Date(e.t),eid:e.eid||uid()}));
+      nextWorkerId=s.next||Math.max(0,...workers.map(w=>w.id||0))+1; binNo=s.binNo||42; active=s.active===true;
+      $('#crew').value=s.crew||'Cuadrilla 04'; $('#lot').value=s.lot||'Cuadra 14'; $('#var').value=s.vari||'Mandarina Afourer'; $('#bin').value=s.bin||'BIN-0042';
+      return true;
+    }catch(e){return false}
+  }
+  function seedInitial(){
+    workers=defaultWorkers.map((x,i)=>({id:i+1,n:x[0],code:x[1]}));events=[];nextWorkerId=11;binNo=42;active=false;
+    $('#crew').value='Cuadrilla 04';$('#lot').value='Cuadra 14';$('#var').value='Mandarina Afourer';$('#bin').value='BIN-0042';
+  }
+
+  function render(){
+    $('#setupView').classList.toggle('hidden',active);
+    $('#workView').classList.toggle('hidden',!active);
+    $('#summaryView').classList.add('hidden');
+    const c=ctx();
+    $('#sessionTitle').textContent=`${c.crew} · ${c.lot}`;
+    $('#sessionSub').textContent=`${c.vari} · ${c.bin}`;
+    $('#finishBinText').textContent=c.bin;
+    $('#bagCount').textContent=currentEvents().length;
+    renderPeopleAdmin();renderManualWorkers();updateNetwork();saveState();
+  }
+
+  function updateNetwork(){
+    const n=$('#networkTech');
+    if(navigator.onLine){n.className='ok';n.innerHTML='<i class="bi bi-wifi"></i> con conexión'}
+    else{n.className='off';n.innerHTML='<i class="bi bi-wifi-off"></i> sin conexión'}
+  }
+  window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);
+
+  async function requestWakeLock(){
+    try{if('wakeLock'in navigator&&document.visibilityState==='visible'&&!wakeLock)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}
+  }
+  async function releaseWakeLock(){try{if(wakeLock){await wakeLock.release();wakeLock=null}}catch(e){}}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&active)requestWakeLock()});
+
+  function initAudio(){
+    try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}catch(e){}
+  }
+  function tone(start,freq,duration,gain=.22,type='square'){
+    if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,start);
+    g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(gain,start+.008);g.gain.setValueAtTime(gain,start+duration-.018);g.gain.exponentialRampToValueAtTime(.0001,start+duration);
+    o.connect(g);g.connect(audioCtx.destination);o.start(start);o.stop(start+duration+.01);
+  }
+  function strongScanFeedback(){
+    try{
+      initAudio(); if(audioCtx){const t=audioCtx.currentTime+.01;tone(t,1250,.12,.25,'square');tone(t+.16,1750,.14,.28,'square');tone(t+.16,2350,.14,.10,'sine')}
+      if(navigator.vibrate)navigator.vibrate([150,60,170]);
+    }catch(e){}
+  }
+
+  function setReader(state,title,detail){
+    const badge=$('#cameraBadge'),icon=$('#readerIcon');
+    badge.className='camera-overlay-state'+(state==='ready'||state==='success'?' ready':'');
+    badge.querySelector('span:last-child').textContent=state==='ready'?'LISTO':state==='success'?'REGISTRADO':state==='error'?'REVISAR':'PREPARANDO';
+    icon.className='bi '+(state==='success'?'bi-check-circle-fill':state==='error'?'bi-exclamation-triangle':'bi-upc-scan');
+    $('#readerTitle').textContent=title;$('#readerDetail').textContent=detail;
+  }
+  function cameraErrorMessage(err){
+    const name=err?.name||'';
+    if(name==='NotAllowedError'||name==='PermissionDeniedError')return 'Permiso de cámara bloqueado. Habilitalo en el navegador.';
+    if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'No se encontró una cámara disponible.';
+    if(name==='NotReadableError'||name==='TrackStartError')return 'La cámara está ocupada por otra aplicación.';
+    if(!window.isSecureContext)return 'La cámara requiere HTTPS.';
+    return 'No fue posible iniciar la cámara.';
+  }
+  function bindQuagga(){
+    if(quaggaBound||!window.Quagga)return;
+    Quagga.onDetected(result=>{
+      if(!quaggaRunning||modalDepth>0||Date.now()<scanPausedUntil)return;
+      const code=normalize(result?.codeResult?.code);if(!code)return;
+      const now=Date.now();
+      if(scanLockCode===code){scanLastSeen=now;return}
+      const lastOk=recentCodeTimes.get(code)||0;if(now-lastOk<2600)return;
+      scanLockCode=code;scanLastSeen=now;handleBarcode(code);
+    });
+    Quagga.onProcessed(()=>{
+      if(scanLockCode&&Date.now()-scanLastSeen>1450){scanLockCode='';setReader('ready','Listo para escanear','Acercá la siguiente credencial al recuadro.')}
+    });
+    quaggaBound=true;
+  }
+  function startCamera(){
+    initAudio();requestWakeLock();
+    if(quaggaRunning)return;
+    if(!active)return;
+    if(!window.Quagga){setReader('error','Lector no disponible','No se pudo cargar Quagga2. Usá registro manual.');return}
+    if(!navigator.mediaDevices?.getUserMedia||!window.isSecureContext){setReader('error','Cámara no disponible','Abrí la aplicación por HTTPS o usá registro manual.');return}
+    const target=$('#cameraViewport');target.innerHTML='';$('#cameraPlaceholder').classList.remove('hidden');$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Solicitando acceso a la cámara…</div>';
+    setReader('loading','Preparando cámara','Aceptá el permiso de cámara si el navegador lo solicita.');bindQuagga();
+    try{
+      Quagga.init({
+        inputStream:{name:'Live',type:'LiveStream',target,constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},area:{top:'17%',right:'7%',left:'7%',bottom:'17%'}},
+        locator:{patchSize:'medium',halfSample:true},decoder:{readers:['code_128_reader','code_39_reader','codabar_reader','i2of5_reader']},locate:true,frequency:12
+      },err=>{
+        if(err){quaggaRunning=false;quaggaInitialized=false;setReader('error','No se pudo activar la cámara',cameraErrorMessage(err));$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video-off" style="font-size:1.5rem"></i><br>Usá el botón de cámara para reintentar.</div>';return}
+        quaggaInitialized=true;
+        try{Quagga.start();quaggaRunning=true;$('#cameraPlaceholder').classList.add('hidden');$('#cameraTech').className='ok';setReader('ready','Listo para escanear','Centrá el código de barras dentro del recuadro.');updateCameraButtons()}catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
+      });
+    }catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
+  }
+  function stopCamera(){
+    if(window.Quagga&&(quaggaRunning||quaggaInitialized)){try{Quagga.stop()}catch(e){}}
+    quaggaRunning=false;quaggaInitialized=false;scanLockCode='';$('#cameraViewport').innerHTML='';$('#cameraPlaceholder').classList.remove('hidden');$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video-off" style="font-size:1.5rem"></i><br>Cámara detenida</div>';$('#cameraTech').className='off';
+    setReader('error','Cámara detenida','Tocá el botón de cámara para continuar.');updateCameraButtons();
+  }
+  function updateCameraButtons(){
+    $('#cameraToggle').innerHTML=quaggaRunning?'<i class="bi bi-camera-video-off"></i>':'<i class="bi bi-camera-video"></i>';
+    $('#menuCameraBtn').innerHTML=quaggaRunning?'<i class="bi bi-camera-video-off"></i>Detener cámara':'<i class="bi bi-camera-video"></i>Activar cámara';
+  }
+
+  function addEvent(workerId,observations=[],source='manual',barcode=null){
+    if(!active){toast('La jornada no está activa');return null}
+    const c=ctx(),e={eid:uid(),w:workerId,t:new Date(),o:[...observations],crew:c.crew,lot:c.lot,bin:c.bin,var:c.vari,source,barcode};
+    events.push(e);lastEventId=e.eid;saveState();renderLast(e,true);render();maybeQualityAlert(workerId);return e;
+  }
+  function handleBarcode(code){
+    const w=workerByCode(code);
+    if(!w){setReader('error',`Código ${code} no identificado`,'Usá el registro manual o verificá la credencial.');scanPausedUntil=Date.now()+900;return}
+    recentCodeTimes.set(code,Date.now());scanPausedUntil=Date.now()+620;
+    const e=addEvent(w.id,[],'camera',code);if(!e)return;
+    strongScanFeedback();renderLast(e,true);setReader('success','Vuelco registrado',`${w.n} · ${nowTime(e.t).slice(0,5)} · retirale la credencial al lector.`);
+  }
+
+  function renderLast(e,allowUndo=false){
+    const w=e&&workerById(e.w);
+    if(!e||!w){$('#lastName').textContent='Aún no hay vuelcos';$('#lastMeta').textContent='El último recolector leído aparecerá acá.';$('#lastMark').classList.add('hidden');$('#lastActions').classList.add('hidden');return}
+    $('#lastName').textContent=w.n;$('#lastMeta').textContent=`Vuelco registrado · ${nowTime(e.t).slice(0,5)} · ${e.bin}`;$('#lastMark').classList.remove('hidden');$('#lastActions').classList.remove('hidden');
+    $('#undoBtn').classList.toggle('hidden',!allowUndo);lastEventId=e.eid;
+    clearTimeout(undoTimer);if(allowUndo)undoTimer=setTimeout(()=>$('#undoBtn').classList.add('hidden'),10000);
+  }
+  function undoLast(){
+    if(!lastEventId)return;const idx=events.findIndex(e=>e.eid===lastEventId);if(idx<0)return;
+    const removed=events.splice(idx,1)[0];lastEventId=null;clearTimeout(undoTimer);saveState();
+    const prev=[...events].sort((a,b)=>b.t-a.t)[0];renderLast(prev,false);render();toast(`Registro de ${workerById(removed.w)?.n||'recolector'} deshecho`);
+  }
+
+  function maybeQualityAlert(workerId){
+    const recent=events.filter(e=>e.w===workerId).sort((a,b)=>a.t-b.t).slice(-10),bad=recent.filter(e=>e.o?.length).length;
+    if(recent.length>=5&&bad>=3){const w=workerById(workerId);$('#attentionText').textContent=`${w?.n||'El recolector'} acumula ${bad} vuelcos observados en sus últimos ${recent.length} registros. Informar al supervisor.`;$('#attention').classList.remove('hidden')}
+  }
+
+  function renderChoices(){
+    $('#choiceGrid').innerHTML=reasons.map(([id,label])=>`<button class="choice ${selectedReasons.has(id)?'selected':''}" data-reason="${id}">${esc(label)}</button>`).join('');
+    $$('[data-reason]').forEach(b=>b.onclick=()=>{selectedReasons.has(b.dataset.reason)?selectedReasons.delete(b.dataset.reason):selectedReasons.add(b.dataset.reason);renderChoices()});
+  }
+  function openObservation(workerId,eventId=null){
+    observationWorkerId=workerId;observationEventId=eventId;selectedReasons.clear();const w=workerById(workerId);
+    $('#obsTitle').textContent=`Observación · ${w?.n||'Recolector'}`;
+    $('#obsSubtitle').textContent=eventId?'Se agregará al último vuelco registrado.':'La observación y el vuelco se guardarán juntos.';
+    renderChoices();openModal($('#observationModal'));
+  }
+  function closeObservation(){closeModal($('#observationModal'));observationWorkerId=null;observationEventId=null;selectedReasons.clear();if(active&&quaggaRunning)setReader('ready','Listo para escanear','Acercá la siguiente credencial al recuadro.')}
+  function saveObservation(){
+    if(!selectedReasons.size){toast('Seleccioná al menos una observación');return}
+    const obs=[...selectedReasons];
+    if(observationEventId){const e=eventById(observationEventId);if(e){e.o=obs;saveState();renderLast(e,false);maybeQualityAlert(e.w);toast('Observación agregada al vuelco')}}
+    else{const e=addEvent(observationWorkerId,obs,'manual',workerById(observationWorkerId)?.code||null);if(e)toast('Vuelco observado registrado')}
+    closeObservation();render();
+  }
+
+  function renderManualWorkers(){
+    $('#manualWorkers').innerHTML=workers.map(w=>`<div class="worker-row"><div><div class="name">${esc(w.n)}</div><div class="code">Código ${esc(w.code||'—')}</div></div><div class="worker-actions"><button class="reg" data-manual="${w.id}"><i class="bi bi-check-lg"></i> Vuelco</button><button class="ob" data-manual-obs="${w.id}"><i class="bi bi-exclamation-circle"></i> Obs.</button></div></div>`).join('');
+    $$('[data-manual]').forEach(b=>b.onclick=()=>{const e=addEvent(+b.dataset.manual,[],'manual',workerById(+b.dataset.manual)?.code||null);if(e)toast('Vuelco registrado manualmente')});
+    $$('[data-manual-obs]').forEach(b=>b.onclick=()=>{closeModal($('#manualModal'));openObservation(+b.dataset.manualObs,null)});
+  }
+
+  function renderPeopleAdmin(){
+    $('#peopleList').innerHTML=workers.map(w=>`<div class="person-admin"><div><strong>${esc(w.n)}</strong><div class="muted small">Código ${esc(w.code||'—')}</div></div><button data-remove-worker="${w.id}"><i class="bi bi-trash"></i> Quitar</button></div>`).join('');
+    $$('[data-remove-worker]').forEach(b=>b.onclick=()=>{const id=+b.dataset.removeWorker;if(events.some(e=>e.w===id)){toast('No se puede quitar: ya tiene registros');return}workers=workers.filter(w=>w.id!==id);render()});
+  }
+
+  function startDay(){
+    initAudio();active=true;$('#summaryView').classList.add('hidden');render();requestWakeLock();toast('Jornada iniciada');setTimeout(startCamera,100);
+  }
+  function finishBin(){
+    if(!active)return;binNo++;$('#bin').value='BIN-'+String(binNo).padStart(4,'0');saveState();render();
+    setReader(quaggaRunning?'ready':'error',quaggaRunning?'Nuevo bin listo':'Bin actualizado',`${$('#bin').value} preparado para continuar.`);toast(`Nuevo bin: ${$('#bin').value}`);
+  }
+  function showSummary(){
+    const data=currentEvents(),times=data.map(e=>e.t).sort((a,b)=>a-b),bins=[...new Set(data.map(e=>e.bin))],cuadras=[...new Set(data.map(e=>e.lot))];
+    const range=times.length?`${nowTime(times[0]).slice(0,5)} – ${nowTime(times[times.length-1]).slice(0,5)}`:'Sin registros';
+    $('#summaryData').innerHTML=[['Cuadrilla',$('#crew').value],['Cuadras',cuadras.join(', ')||'—'],['Vuelcos',data.length],['Bins utilizados',bins.length],['Recolectores',new Set(data.map(e=>e.w)).size],['Vuelcos observados',data.filter(e=>e.o?.length).length],['Horario',range]].map(([k,v])=>`<div class="summary-row"><span class="muted">${k}</span><strong>${esc(v)}</strong></div>`).join('');
+    $('#workView').classList.add('hidden');$('#setupView').classList.add('hidden');$('#summaryView').classList.remove('hidden');
+  }
+  async function endDay(){
+    closeModal($('#confirmEndModal'));closeModal($('#menuModal'));stopCamera();await releaseWakeLock();active=false;saveState();showSummary();toast('Jornada finalizada');
+  }
+  function newDay(){
+    events=[];active=false;binNo=1;$('#bin').value='BIN-0001';lastEventId=null;recentCodeTimes.clear();renderLast(null);saveState();$('#summaryView').classList.add('hidden');$('#workView').classList.add('hidden');$('#setupView').classList.remove('hidden');toast('Nueva jornada preparada');
+  }
+
+  function openSessionEdit(){
+    const c=ctx();$('#editCrew').value=c.crew;$('#editLot').value=c.lot;$('#editVar').value=c.vari;$('#editBin').value=c.bin;closeModal($('#menuModal'));openModal($('#sessionModal'));
+  }
+  function saveSessionEdit(){
+    $('#crew').value=$('#editCrew').value;$('#lot').value=$('#editLot').value.trim()||'Sin cuadra';$('#var').value=$('#editVar').value;$('#bin').value=$('#editBin').value.trim()||'Sin bin';
+    const m=$('#bin').value.match(/(\d+)$/);if(m)binNo=parseInt(m[1],10);closeModal($('#sessionModal'));render();toast('Datos de jornada actualizados');
+  }
+
+  // Eventos UI
+  $('#startBtn').onclick=startDay;
+  $('#cameraToggle').onclick=()=>quaggaRunning?stopCamera():startCamera();
+  $('#finishBinBtn').onclick=finishBin;
+  $('#manualBtn').onclick=()=>openModal($('#manualModal'));
+  $('#manualClose').onclick=()=>closeModal($('#manualModal'));
+  $('#observationLastBtn').onclick=()=>{const e=eventById(lastEventId);if(e)openObservation(e.w,e.eid)};
+  $('#undoBtn').onclick=undoLast;
+  $('#obsClose').onclick=closeObservation;$('#cancelObservationBtn').onclick=closeObservation;$('#saveObservationBtn').onclick=saveObservation;
+  $('#dismissAttention').onclick=()=>$('#attention').classList.add('hidden');
+
+  $('#menuBtn').onclick=()=>{if(active)openModal($('#menuModal'));else openModal($('#peopleModal'))};
+  $('#menuClose').onclick=()=>closeModal($('#menuModal'));
+  $('#editSessionBtn').onclick=openSessionEdit;
+  $('#managePeopleBtn').onclick=()=>{closeModal($('#menuModal'));openModal($('#peopleModal'))};
+  $('#menuCameraBtn').onclick=()=>{closeModal($('#menuModal'));quaggaRunning?stopCamera():startCamera()};
+  $('#endDayBtn').onclick=()=>{closeModal($('#menuModal'));openModal($('#confirmEndModal'))};
+  $('#sessionClose').onclick=()=>closeModal($('#sessionModal'));$('#saveSessionBtn').onclick=saveSessionEdit;
+  $('#endClose').onclick=()=>closeModal($('#confirmEndModal'));$('#cancelEndBtn').onclick=()=>closeModal($('#confirmEndModal'));$('#confirmEndBtn').onclick=endDay;
+
+  $('#peopleBtn').onclick=()=>openModal($('#peopleModal'));$('#peopleClose').onclick=()=>closeModal($('#peopleModal'));
+  $('#addWorkerBtn').onclick=()=>{
+    const n=$('#newWorkerName').value.trim(),code=normalize($('#newWorkerCode').value);if(n.length<2){toast('Ingresá un nombre válido');return}if(!code){toast('Ingresá el código de la credencial');return}if(workerByCode(code)){toast('Ese código ya está asociado');return}
+    workers.push({id:nextWorkerId++,n,code});$('#newWorkerName').value='';$('#newWorkerCode').value='';render();toast('Recolector agregado');
+  };
+  $('#newDayBtn').onclick=newDay;
+
+  ['crew','lot','var','bin'].forEach(id=>$('#'+id).addEventListener('change',()=>{const m=$('#bin').value.match(/(\d+)$/);if(m)binNo=parseInt(m[1],10);render()}));
+
+  // Cerrar modal tocando el fondo, no el contenido.
+  $$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m&&!m.matches('#confirmEndModal'))closeModal(m)}));
+
+  if(!loadState())seedInitial();
+  renderChoices();renderPeopleAdmin();renderManualWorkers();renderLast([...events].sort((a,b)=>b.t-a.t)[0]||null,false);updateNetwork();
+  if(active){$('#setupView').classList.add('hidden');$('#workView').classList.remove('hidden');$('#summaryView').classList.add('hidden');setReader('error','Jornada activa','Tocá el botón de cámara para reanudar el lector.');requestWakeLock()}
+})();
+</script>
+</body>
 </html>
