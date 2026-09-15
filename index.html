@@ -241,7 +241,7 @@
 
       <div class="techline" aria-live="polite">
         <span id="cameraTech"><i class="bi bi-camera-video"></i> cámara</span>
-        <span id="storageTech" class="ok"><i class="bi bi-device-ssd"></i> datos guardados</span>
+        <span id="storageTech"><i class="bi bi-cloud"></i> Firebase</span>
         <span id="networkTech"><i class="bi bi-wifi"></i> conexión</span>
       </div>
     </section>
@@ -342,13 +342,41 @@
 <div id="toast" class="toast"></div>
 
 <script>
-(()=>{
+(async()=>{
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-  const STORAGE_KEY='frutura_state_v2';
+
+  // Firebase / Firestore (CDN modular). Si la red falla, la app sigue operativa con el estado local
+  // y Firestore reintentará las escrituras pendientes mediante su caché persistente cuando sea posible.
+  const firebaseConfig = {
+    apiKey: "AIzaSyDSjOJXRHI7AP8f4bw29bJnBhliTfin0d0",
+    authDomain: "frutura-ee46a.firebaseapp.com",
+    projectId: "frutura-ee46a",
+    storageBucket: "frutura-ee46a.firebasestorage.app",
+    messagingSenderId: "555354643611",
+    appId: "1:555354643611:web:53980f26ed8c96f8973a3e"
+  };
+  let db=null, F=null;
+  try {
+    const appSdk = await import('https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js');
+    const fsSdk = await import('https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js');
+    const app = appSdk.initializeApp(firebaseConfig);
+    try {
+      db = fsSdk.initializeFirestore(app, {
+        localCache: fsSdk.persistentLocalCache({tabManager: fsSdk.persistentMultipleTabManager()})
+      });
+    } catch (e) {
+      db = fsSdk.getFirestore(app);
+    }
+    F = fsSdk;
+  } catch (e) {
+    console.error('Firebase no pudo inicializarse:', e);
+  }
+  const STORAGE_KEY='frutura_state_v3_firebase';
   const reasons=[
-    ['ped','Tallo / pedúnculo largo'],['gol','Golpeada / machucada'],['cut','Daño de corte / tijera'],
-    ['skin','Cáscara dañada'],['mat','Color / madurez'],['leaf','Hojas o ramas'],
-    ['pest','Plaga / enfermedad'],['rot','Podredumbre / deterioro'],['other','Otro']
+    ['cabo_largo','Cabo largo'],
+    ['desbotonada','Desbotonada'],
+    ['rameada','Rameada'],
+    ['otro','Otro']
   ];
   const defaultWorkers=[
     ['Nazareno Rosales Curbelo','367379'],['Ana Silva','367380'],['Pedro Gómez','367381'],['Carlos Rodríguez','367382'],
@@ -356,7 +384,7 @@
     ['María López','367387'],['Sergio Cabrera','367388']
   ];
 
-  let workers=[],events=[],nextWorkerId=11,binNo=42,active=false;
+  let workers=[],events=[],nextWorkerId=11,binNo=42,active=false,currentJornadaId=null;
   let quaggaRunning=false,quaggaInitialized=false,quaggaBound=false;
   let scanLockCode='',scanLastSeen=0,scanPausedUntil=0;
   let recentCodeTimes=new Map();
@@ -382,24 +410,111 @@
     try{
       localStorage.setItem(STORAGE_KEY,JSON.stringify({
         workers,events:events.map(e=>({...e,t:e.t instanceof Date?e.t.toISOString():e.t})),
-        next:nextWorkerId,binNo,active,crew:$('#crew').value,lot:$('#lot').value,vari:$('#var').value,bin:$('#bin').value
+        next:nextWorkerId,binNo,active,jornadaId:currentJornadaId,crew:$('#crew').value,lot:$('#lot').value,vari:$('#var').value,bin:$('#bin').value
       }));
-      $('#storageTech').className='ok';
-    }catch(e){$('#storageTech').className='off'}
+    }catch(e){console.warn('No se pudo guardar estado local',e)}
   }
   function loadState(){
     try{
       const raw=localStorage.getItem(STORAGE_KEY); if(!raw)return false;
       const s=JSON.parse(raw); if(!Array.isArray(s.workers)||!Array.isArray(s.events))return false;
       workers=s.workers; events=s.events.map(e=>({...e,t:new Date(e.t),eid:e.eid||uid()}));
-      nextWorkerId=s.next||Math.max(0,...workers.map(w=>w.id||0))+1; binNo=s.binNo||42; active=s.active===true;
+      nextWorkerId=s.next||Math.max(0,...workers.map(w=>w.id||0))+1; binNo=s.binNo||42; active=s.active===true; currentJornadaId=s.jornadaId||null;
       $('#crew').value=s.crew||'Cuadrilla 04'; $('#lot').value=s.lot||'Cuadra 14'; $('#var').value=s.vari||'Mandarina Afourer'; $('#bin').value=s.bin||'BIN-0042';
       return true;
     }catch(e){return false}
   }
   function seedInitial(){
-    workers=defaultWorkers.map((x,i)=>({id:i+1,n:x[0],code:x[1]}));events=[];nextWorkerId=11;binNo=42;active=false;
+    workers=defaultWorkers.map((x,i)=>({id:i+1,n:x[0],code:x[1]}));events=[];nextWorkerId=11;binNo=42;active=false;currentJornadaId=null;
     $('#crew').value='Cuadrilla 04';$('#lot').value='Cuadra 14';$('#var').value='Mandarina Afourer';$('#bin').value='BIN-0042';
+  }
+
+  function setFirebaseTech(ok, text){
+    const x=$('#storageTech');
+    if(!x)return;
+    x.className=ok?'ok':'off';
+    x.innerHTML=`<i class="bi ${ok?'bi-cloud-check':'bi-cloud-slash'}"></i> ${text}`;
+  }
+  const workerDocId=w=>normalize(w?.code)||String(w?.id||'sin-codigo');
+  async function persistWorker(w){
+    if(!db||!F||!w)return;
+    try{
+      await F.setDoc(F.doc(db,'recolectores',workerDocId(w)),{
+        id:w.id,nombre:w.n,codigo:normalize(w.code),activo:true,updatedAt:F.serverTimestamp()
+      },{merge:true});
+      setFirebaseTech(true,'Firebase sincronizado');
+    }catch(e){console.warn('No se pudo sincronizar recolector',e);setFirebaseTech(false,'pendiente de sincronizar')}
+  }
+  async function removeWorkerRemote(w){
+    if(!db||!F||!w)return;
+    try{await F.deleteDoc(F.doc(db,'recolectores',workerDocId(w)));setFirebaseTech(true,'Firebase sincronizado')}
+    catch(e){console.warn('No se pudo eliminar recolector',e);setFirebaseTech(false,'pendiente de sincronizar')}
+  }
+  function eventPayload(e){
+    const w=workerById(e.w);
+    return {
+      eid:e.eid,
+      jornadaId:e.jornadaId||currentJornadaId||null,
+      recolectorId:e.w,
+      recolectorNombre:w?.n||e.recolectorNombre||'Recolector',
+      codigo:e.barcode||w?.code||null,
+      fechaHora:F.Timestamp.fromDate(e.t instanceof Date?e.t:new Date(e.t)),
+      observaciones:[...(e.o||[])],
+      cuadrilla:e.crew,
+      cuadra:e.lot,
+      bin:e.bin,
+      variedad:e.var,
+      origen:e.source||'manual',
+      updatedAt:F.serverTimestamp()
+    };
+  }
+  async function persistEvent(e){
+    if(!db||!F||!e)return;
+    try{await F.setDoc(F.doc(db,'vuelcos',e.eid),eventPayload(e),{merge:true});setFirebaseTech(true,'Firebase sincronizado')}
+    catch(err){console.warn('Vuelco pendiente de sincronización',err);setFirebaseTech(false,'pendiente de sincronizar')}
+  }
+  async function deleteEventRemote(eid){
+    if(!db||!F||!eid)return;
+    try{await F.deleteDoc(F.doc(db,'vuelcos',eid));setFirebaseTech(true,'Firebase sincronizado')}
+    catch(err){console.warn('No se pudo eliminar el vuelco remoto',err);setFirebaseTech(false,'pendiente de sincronizar')}
+  }
+  async function persistJornada(extra={}){
+    if(!db||!F||!currentJornadaId)return;
+    const c=ctx();
+    try{
+      await F.setDoc(F.doc(db,'jornadas',currentJornadaId),{
+        id:currentJornadaId,cuadrilla:c.crew,cuadra:c.lot,variedad:c.vari,binActual:c.bin,
+        activa:active,updatedAt:F.serverTimestamp(),...extra
+      },{merge:true});
+      setFirebaseTech(true,'Firebase sincronizado');
+    }catch(e){console.warn('Jornada pendiente de sincronización',e);setFirebaseTech(false,'pendiente de sincronizar')}
+  }
+  async function loadWorkersFromFirebase(){
+    if(!db||!F){setFirebaseTech(false,'sin conexión a Firebase');return}
+    try{
+      const snap=await F.getDocs(F.collection(db,'recolectores'));
+      if(snap.empty){
+        await Promise.all(workers.map(persistWorker));
+      }else{
+        workers=snap.docs.map(d=>{const x=d.data();return {id:Number(x.id)||0,n:x.nombre||'Recolector',code:String(x.codigo||d.id)}}).filter(w=>w.id||w.code);
+        workers.sort((a,b)=>(a.id||9999)-(b.id||9999));
+        nextWorkerId=Math.max(0,...workers.map(w=>Number(w.id)||0))+1;
+      }
+      setFirebaseTech(true,'Firebase sincronizado');
+    }catch(e){console.warn('No se pudieron cargar recolectores',e);setFirebaseTech(false,'sin conexión a Firebase')}
+  }
+  async function mergeCurrentJornadaFromFirebase(){
+    if(!db||!F||!currentJornadaId)return;
+    try{
+      const q=F.query(F.collection(db,'vuelcos'),F.where('jornadaId','==',currentJornadaId));
+      const snap=await F.getDocs(q);
+      const remote=snap.docs.map(d=>{const x=d.data();return {
+        eid:x.eid||d.id,w:Number(x.recolectorId),t:x.fechaHora?.toDate?x.fechaHora.toDate():new Date(),
+        o:Array.isArray(x.observaciones)?x.observaciones:[],crew:x.cuadrilla||'',lot:x.cuadra||'',bin:x.bin||'',var:x.variedad||'',
+        source:x.origen||'manual',barcode:x.codigo||null,jornadaId:x.jornadaId||currentJornadaId
+      }});
+      const map=new Map(events.map(e=>[e.eid,e]));remote.forEach(e=>map.set(e.eid,e));events=[...map.values()].sort((a,b)=>a.t-b.t);
+    }catch(e){console.warn('No se pudo recuperar la jornada desde Firebase',e)}
   }
 
   function render(){
@@ -522,8 +637,8 @@
 
   function addEvent(workerId,observations=[],source='manual',barcode=null){
     if(!active){toast('La jornada no está activa');return null}
-    const c=ctx(),e={eid:uid(),w:workerId,t:new Date(),o:[...observations],crew:c.crew,lot:c.lot,bin:c.bin,var:c.vari,source,barcode};
-    events.push(e);lastEventId=e.eid;saveState();renderLast(e,true);render();maybeQualityAlert(workerId);return e;
+    const c=ctx(),e={eid:uid(),w:workerId,t:new Date(),o:[...observations],crew:c.crew,lot:c.lot,bin:c.bin,var:c.vari,source,barcode,jornadaId:currentJornadaId};
+    events.push(e);lastEventId=e.eid;saveState();void persistEvent(e);renderLast(e,true);render();maybeQualityAlert(workerId);return e;
   }
   function handleBarcode(code){
     const w=workerByCode(code);
@@ -542,7 +657,7 @@
   }
   function undoLast(){
     if(!lastEventId)return;const idx=events.findIndex(e=>e.eid===lastEventId);if(idx<0)return;
-    const removed=events.splice(idx,1)[0];lastEventId=null;clearTimeout(undoTimer);saveState();
+    const removed=events.splice(idx,1)[0];lastEventId=null;clearTimeout(undoTimer);saveState();void deleteEventRemote(removed.eid);
     const prev=[...events].sort((a,b)=>b.t-a.t)[0];renderLast(prev,false);render();toast(`Registro de ${workerById(removed.w)?.n||'recolector'} deshecho`);
   }
 
@@ -565,7 +680,7 @@
   function saveObservation(){
     if(!selectedReasons.size){toast('Seleccioná al menos una observación');return}
     const obs=[...selectedReasons];
-    if(observationEventId){const e=eventById(observationEventId);if(e){e.o=obs;saveState();renderLast(e,false);maybeQualityAlert(e.w);toast('Observación agregada al vuelco')}}
+    if(observationEventId){const e=eventById(observationEventId);if(e){e.o=obs;saveState();void persistEvent(e);renderLast(e,false);maybeQualityAlert(e.w);toast('Observación agregada al vuelco')}}
     else{const e=addEvent(observationWorkerId,obs,'manual',workerById(observationWorkerId)?.code||null);if(e)toast('Vuelco observado registrado')}
     closeObservation();render();
   }
@@ -578,14 +693,18 @@
 
   function renderPeopleAdmin(){
     $('#peopleList').innerHTML=workers.map(w=>`<div class="person-admin"><div><strong>${esc(w.n)}</strong><div class="muted small">Código ${esc(w.code||'—')}</div></div><button data-remove-worker="${w.id}"><i class="bi bi-trash"></i> Quitar</button></div>`).join('');
-    $$('[data-remove-worker]').forEach(b=>b.onclick=()=>{const id=+b.dataset.removeWorker;if(events.some(e=>e.w===id)){toast('No se puede quitar: ya tiene registros');return}workers=workers.filter(w=>w.id!==id);render()});
+    $$('[data-remove-worker]').forEach(b=>b.onclick=()=>{const id=+b.dataset.removeWorker;if(events.some(e=>e.w===id)){toast('No se puede quitar: ya tiene registros');return}const w=workerById(id);workers=workers.filter(w=>w.id!==id);void removeWorkerRemote(w);render()});
   }
 
   function startDay(){
-    initAudio();active=true;$('#summaryView').classList.add('hidden');render();requestWakeLock();toast('Jornada iniciada');setTimeout(startCamera,100);
+    initAudio();
+    if(!currentJornadaId)currentJornadaId=`j_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+    active=true;$('#summaryView').classList.add('hidden');saveState();
+    void persistJornada({inicio:F?F.serverTimestamp():new Date(),fin:null});
+    render();requestWakeLock();toast('Jornada iniciada');setTimeout(startCamera,100);
   }
   function finishBin(){
-    if(!active)return;binNo++;$('#bin').value='BIN-'+String(binNo).padStart(4,'0');saveState();render();
+    if(!active)return;binNo++;$('#bin').value='BIN-'+String(binNo).padStart(4,'0');saveState();void persistJornada();render();
     setReader(quaggaRunning?'ready':'error',quaggaRunning?'Nuevo bin listo':'Bin actualizado',`${$('#bin').value} preparado para continuar.`);toast(`Nuevo bin: ${$('#bin').value}`);
   }
   function showSummary(){
@@ -595,10 +714,10 @@
     $('#workView').classList.add('hidden');$('#setupView').classList.add('hidden');$('#summaryView').classList.remove('hidden');
   }
   async function endDay(){
-    closeModal($('#confirmEndModal'));closeModal($('#menuModal'));stopCamera();await releaseWakeLock();active=false;saveState();showSummary();toast('Jornada finalizada');
+    closeModal($('#confirmEndModal'));closeModal($('#menuModal'));stopCamera();await releaseWakeLock();active=false;saveState();await persistJornada({fin:F?F.serverTimestamp():new Date()});showSummary();toast('Jornada finalizada');
   }
   function newDay(){
-    events=[];active=false;binNo=1;$('#bin').value='BIN-0001';lastEventId=null;recentCodeTimes.clear();renderLast(null);saveState();$('#summaryView').classList.add('hidden');$('#workView').classList.add('hidden');$('#setupView').classList.remove('hidden');toast('Nueva jornada preparada');
+    events=[];active=false;currentJornadaId=null;binNo=1;$('#bin').value='BIN-0001';lastEventId=null;recentCodeTimes.clear();renderLast(null);saveState();$('#summaryView').classList.add('hidden');$('#workView').classList.add('hidden');$('#setupView').classList.remove('hidden');toast('Nueva jornada preparada');
   }
 
   function openSessionEdit(){
@@ -606,7 +725,7 @@
   }
   function saveSessionEdit(){
     $('#crew').value=$('#editCrew').value;$('#lot').value=$('#editLot').value.trim()||'Sin cuadra';$('#var').value=$('#editVar').value;$('#bin').value=$('#editBin').value.trim()||'Sin bin';
-    const m=$('#bin').value.match(/(\d+)$/);if(m)binNo=parseInt(m[1],10);closeModal($('#sessionModal'));render();toast('Datos de jornada actualizados');
+    const m=$('#bin').value.match(/(\d+)$/);if(m)binNo=parseInt(m[1],10);closeModal($('#sessionModal'));saveState();void persistJornada();render();toast('Datos de jornada actualizados');
   }
 
   // Eventos UI
@@ -633,7 +752,7 @@
   $('#peopleBtn').onclick=()=>openModal($('#peopleModal'));$('#peopleClose').onclick=()=>closeModal($('#peopleModal'));
   $('#addWorkerBtn').onclick=()=>{
     const n=$('#newWorkerName').value.trim(),code=normalize($('#newWorkerCode').value);if(n.length<2){toast('Ingresá un nombre válido');return}if(!code){toast('Ingresá el código de la credencial');return}if(workerByCode(code)){toast('Ese código ya está asociado');return}
-    workers.push({id:nextWorkerId++,n,code});$('#newWorkerName').value='';$('#newWorkerCode').value='';render();toast('Recolector agregado');
+    const w={id:nextWorkerId++,n,code};workers.push(w);void persistWorker(w);$('#newWorkerName').value='';$('#newWorkerCode').value='';render();toast('Recolector agregado');
   };
   $('#newDayBtn').onclick=newDay;
 
@@ -643,7 +762,10 @@
   $$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m&&!m.matches('#confirmEndModal'))closeModal(m)}));
 
   if(!loadState())seedInitial();
-  renderChoices();renderPeopleAdmin();renderManualWorkers();renderLast([...events].sort((a,b)=>b.t-a.t)[0]||null,false);updateNetwork();
+  setFirebaseTech(!!db,db?'Conectando con Firebase…':'Firebase no disponible');
+  await loadWorkersFromFirebase();
+  await mergeCurrentJornadaFromFirebase();
+  renderChoices();renderPeopleAdmin();renderManualWorkers();renderLast([...events].sort((a,b)=>b.t-a.t)[0]||null,false);updateNetwork();render();
   if(active){$('#setupView').classList.add('hidden');$('#workView').classList.remove('hidden');$('#summaryView').classList.add('hidden');setReader('error','Jornada activa','Tocá el botón de cámara para reanudar el lector.');requestWakeLock()}
 })();
 </script>
