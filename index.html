@@ -7,6 +7,7 @@
   <title>Frutura · Registro de cosecha</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root{
       --bg:#f2f6f3;--card:#fff;--soft:#edf3ef;--text:#173025;--muted:#68776e;--line:#d6e1da;
@@ -127,6 +128,31 @@
     .person-admin button{border:0;background:var(--red-soft);color:var(--red);min-height:42px;border-radius:9px;padding:8px 10px;font-weight:800}
     .add-worker{display:grid;grid-template-columns:1fr 130px;gap:8px;margin-top:8px}
     .add-worker .btn{grid-column:1/-1}
+    .credential-intro{padding:12px;border:1px solid #cfe0d5;border-radius:13px;background:var(--green-soft);margin-bottom:13px}
+    .credential-intro strong{display:block;font-size:.91rem;margin-bottom:3px}
+    .credential-intro p{margin:0 0 10px;color:var(--muted);font-size:.78rem;line-height:1.4}
+    .credential-frame{position:relative;height:min(52dvh,430px);min-height:300px;background:#0f1411;border-radius:14px;overflow:hidden}
+    #credentialViewport{position:absolute;inset:0;overflow:hidden}
+    #credentialViewport video,#credentialViewport canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover!important}
+    #credentialViewport canvas.drawingBuffer{display:none!important}
+    .credential-placeholder{position:absolute;inset:0;z-index:2;display:grid;place-items:center;text-align:center;color:#fff;padding:24px;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.62));font-weight:800}
+    .credential-guide{position:absolute;z-index:4;left:7%;right:7%;top:10%;bottom:10%;border:2px solid rgba(255,255,255,.92);border-radius:16px;pointer-events:none;box-shadow:0 0 0 999px rgba(0,0,0,.18)}
+    .credential-zone{position:absolute;left:7%;right:7%;border-radius:9px;border:2px dashed rgba(255,255,255,.85);display:flex;align-items:flex-start;justify-content:flex-start;padding:5px 7px;color:white;font-size:.68rem;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+    .credential-zone.barcode{top:18%;height:28%}
+    .credential-zone.name{top:51%;height:27%;border-color:#7ff0aa}
+    .credential-status{display:flex;gap:9px;align-items:center;padding:10px 2px 2px;font-size:.8rem;color:var(--muted)}
+    .credential-status i{font-size:1.1rem;color:var(--green)}
+    .ocr-progress{height:7px;background:var(--soft);border-radius:99px;overflow:hidden;margin-top:9px}
+    .ocr-progress i{display:block;height:100%;width:0;background:var(--green);transition:width .18s ease}
+    .credential-result{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:13px;background:#fff}
+    .credential-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .credential-field{padding:10px;background:var(--soft);border-radius:10px}
+    .credential-field span{display:block;color:var(--muted);font-size:.69rem;font-weight:850;text-transform:uppercase;letter-spacing:.03em}
+    .credential-field strong{display:block;margin-top:3px;font-size:.95rem;word-break:break-word}
+    .ocr-name-wrap{margin-top:10px}
+    .ocr-name-wrap input[readonly]{background:#f6f8f6;color:var(--text)}
+    .ocr-note{font-size:.76rem;color:var(--muted);margin-top:7px;line-height:1.35}
+    #ocrPreviewCanvas{width:100%;max-height:110px;object-fit:contain;background:#f4f4f0;border:1px solid var(--line);border-radius:9px;margin-top:10px}
     .summary-list{display:grid;gap:7px}
     .summary-row{display:flex;justify-content:space-between;gap:12px;padding:9px 10px;background:var(--soft);border-radius:10px;font-size:.83rem}
 
@@ -151,6 +177,9 @@
       .add-worker .btn{grid-column:auto}
       #sessionModal .setup-grid{grid-template-columns:1fr}
       #manualModal .sheet-body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+      #credentialModal .sheet-body{padding:10px 10px 18px}
+      #credentialModal .credential-frame{height:48dvh;min-height:285px;border-radius:12px}
+      .credential-result-grid{grid-template-columns:1fr}
     }
     @media(max-height:690px) and (max-width:520px){
       .topbar{height:46px}.camera-frame{height:30dvh;min-height:165px}.session-strip{padding:8px 10px}
@@ -324,8 +353,58 @@
   <div class="sheet">
     <div class="sheet-head"><div><h2>Recolectores</h2><p>Nombre y código de credencial.</p></div><button class="close-btn" id="peopleClose"><i class="bi bi-x-lg"></i></button></div>
     <div class="sheet-body">
-      <div class="add-worker"><input id="newWorkerName" placeholder="Nombre completo"><input id="newWorkerCode" inputmode="numeric" placeholder="Código"><button id="addWorkerBtn" class="btn btn-primary">Agregar recolector</button></div>
+      <div class="credential-intro">
+        <strong><i class="bi bi-person-bounding-box"></i> Alta automática con credencial</strong>
+        <p>Escaneá el código de barras y mantené la credencial dentro del marco. El sistema leerá también la zona del nombre mediante OCR antes de guardar.</p>
+        <button id="scanCredentialBtn" class="btn btn-primary full"><i class="bi bi-camera"></i>Escanear credencial</button>
+      </div>
+      <div class="divider"></div>
+      <div class="muted small" style="margin:10px 0 6px"><strong>Alta manual</strong> · disponible como alternativa.</div>
+      <div class="add-worker"><input id="newWorkerName" placeholder="Nombre completo"><input id="newWorkerCode" inputmode="numeric" placeholder="Código"><button id="addWorkerBtn" class="btn btn-secondary">Agregar manualmente</button></div>
       <div id="peopleList" class="people-admin"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Escaneo de credencial + OCR -->
+<div id="credentialModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="credentialTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div><h2 id="credentialTitle">Escanear credencial</h2><p>Encuadrá el código y el nombre dentro de las zonas indicadas.</p></div>
+      <button class="close-btn" id="credentialClose" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="sheet-body">
+      <div id="credentialCapture">
+        <div class="credential-frame">
+          <div id="credentialViewport"></div>
+          <div id="credentialPlaceholder" class="credential-placeholder"><div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Preparando cámara…</div></div>
+          <div class="credential-guide">
+            <div class="credential-zone barcode">CÓDIGO DE BARRAS</div>
+            <div class="credential-zone name">NOMBRE DEL RECOLECTOR</div>
+          </div>
+        </div>
+        <div class="credential-status"><i id="credentialStatusIcon" class="bi bi-upc-scan"></i><span id="credentialStatusText">Esperando código de barras…</span></div>
+        <div id="ocrProgressWrap" class="hidden"><div class="ocr-progress"><i id="ocrProgressBar"></i></div><div id="ocrProgressText" class="ocr-note">Preparando OCR…</div></div>
+      </div>
+      <div id="credentialResult" class="credential-result hidden">
+        <div class="credential-result-grid">
+          <div class="credential-field"><span>Código detectado</span><strong id="credentialCodeResult">—</strong></div>
+          <div class="credential-field"><span>Estado</span><strong id="credentialExistingResult">Nuevo recolector</strong></div>
+        </div>
+        <canvas id="ocrPreviewCanvas" width="800" height="220" aria-label="Zona de la credencial analizada por OCR"></canvas>
+        <div class="ocr-name-wrap">
+          <label>Nombre detectado por OCR
+            <input id="credentialNameResult" autocomplete="off" readonly placeholder="No se pudo detectar el nombre">
+          </label>
+          <div id="credentialOcrNote" class="ocr-note">Revisá el nombre antes de confirmar.</div>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button id="credentialConfirmBtn" class="btn btn-primary full hidden"><i class="bi bi-check-circle"></i>Confirmar recolector</button>
+      <button id="credentialEditBtn" class="btn btn-secondary full hidden"><i class="bi bi-pencil"></i>Corregir nombre</button>
+      <button id="credentialRetryBtn" class="btn btn-secondary full hidden"><i class="bi bi-arrow-repeat"></i>Escanear nuevamente</button>
+      <button id="credentialCancelBtn" class="btn btn-link full">Cancelar</button>
     </div>
   </div>
 </div>
@@ -390,6 +469,8 @@
   let recentCodeTimes=new Map();
   let modalDepth=0,observationWorkerId=null,observationEventId=null,selectedReasons=new Set();
   let lastEventId=null,undoTimer=null,audioCtx=null,wakeLock=null;
+  let credentialScanActive=false,credentialProcessing=false,credentialCode='',credentialExistingWorker=null,resumeHarvestCamera=false;
+  let ocrWorker=null,ocrWorkerLoading=null;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalize=v=>String(v??'').trim().replace(/\s+/g,'');
@@ -591,17 +672,124 @@
     if(!window.isSecureContext)return 'La cámara requiere HTTPS.';
     return 'No fue posible iniciar la cámara.';
   }
+  function cleanOcrName(raw){
+    const banned=/\b(frutura|uruguay|credencial|codigo|código|recolector|documento|cedula|cédula|empresa|personal)\b/i;
+    const lines=String(raw||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>
+      line.replace(/[0-9_|~`^*+=<>\[\]{}\\/]/g,' ').replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ'’\- ]/g,' ').replace(/\s+/g,' ').trim()
+    ).filter(line=>line.length>=4 && /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(line) && !banned.test(line));
+    if(!lines.length)return '';
+    lines.sort((a,b)=>{
+      const score=s=>s.replace(/\s/g,'').length + (s.split(/\s+/).length>=2?15:0) + (s.split(/\s+/).length>=3?8:0);
+      return score(b)-score(a);
+    });
+    return lines[0].toLowerCase().replace(/(^|[\s'’\-])([a-záéíóúüñ])/g,(_,p,c)=>p+c.toUpperCase());
+  }
+  function setCredentialStatus(text,icon='bi-upc-scan'){
+    $('#credentialStatusText').textContent=text;$('#credentialStatusIcon').className='bi '+icon;
+  }
+  function resetCredentialResult(){
+    credentialProcessing=false;credentialCode='';credentialExistingWorker=null;
+    $('#credentialResult').classList.add('hidden');$('#credentialConfirmBtn').classList.add('hidden');$('#credentialEditBtn').classList.add('hidden');$('#credentialRetryBtn').classList.add('hidden');
+    $('#credentialNameResult').value='';$('#credentialNameResult').readOnly=true;$('#ocrProgressWrap').classList.add('hidden');$('#ocrProgressBar').style.width='0%';
+  }
+  async function ensureOcrWorker(){
+    if(ocrWorker)return ocrWorker;
+    if(ocrWorkerLoading)return ocrWorkerLoading;
+    if(!window.Tesseract)throw new Error('Tesseract.js no disponible');
+    ocrWorkerLoading=Tesseract.createWorker('spa',1,{logger:m=>{
+      if(!credentialScanActive)return;
+      if(typeof m.progress==='number'){$('#ocrProgressBar').style.width=Math.round(m.progress*100)+'%';$('#ocrProgressText').textContent=m.status==='recognizing text'?`Leyendo nombre… ${Math.round(m.progress*100)}%`:'Preparando reconocimiento…'}
+    }}).then(w=>{ocrWorker=w;return w}).finally(()=>{ocrWorkerLoading=null});
+    return ocrWorkerLoading;
+  }
+  function captureNameZone(){
+    const video=$('#credentialViewport video');
+    if(!video||!video.videoWidth||!video.videoHeight)throw new Error('No hay imagen de cámara');
+    const sourceW=video.videoWidth,sourceH=video.videoHeight;
+    // Zona inferior-media de la credencial: coincide con el recuadro verde de NOMBRE.
+    const sx=Math.round(sourceW*.08),sy=Math.round(sourceH*.50),sw=Math.round(sourceW*.84),sh=Math.round(sourceH*.29);
+    const canvas=$('#ocrPreviewCanvas'),scale=Math.max(1.6,Math.min(2.4,1100/sw));
+    canvas.width=Math.round(sw*scale);canvas.height=Math.round(sh*scale);
+    const cx=canvas.getContext('2d',{willReadFrequently:true});
+    cx.save();cx.filter='grayscale(1) contrast(1.75) brightness(1.12)';cx.drawImage(video,sx,sy,sw,sh,0,0,canvas.width,canvas.height);cx.restore();
+    return canvas;
+  }
+  async function runCredentialOcr(canvas,code){
+    $('#ocrProgressWrap').classList.remove('hidden');$('#ocrProgressBar').style.width='3%';$('#ocrProgressText').textContent='Preparando OCR…';
+    setCredentialStatus('Código leído. Reconociendo el nombre…','bi-fonts');
+    let detected='',confidence=0;
+    try{
+      const worker=await ensureOcrWorker();
+      const ret=await worker.recognize(canvas);
+      detected=cleanOcrName(ret?.data?.text||'');confidence=Math.round(ret?.data?.confidence||0);
+    }catch(err){console.warn('OCR no disponible',err)}
+    credentialExistingWorker=workerByCode(code)||null;
+    if(!detected&&credentialExistingWorker)detected=credentialExistingWorker.n;
+    $('#credentialCodeResult').textContent=code;
+    $('#credentialExistingResult').textContent=credentialExistingWorker?'Ya registrado':'Nuevo recolector';
+    $('#credentialNameResult').value=detected;
+    $('#credentialResult').classList.remove('hidden');$('#credentialConfirmBtn').classList.remove('hidden');$('#credentialEditBtn').classList.remove('hidden');$('#credentialRetryBtn').classList.remove('hidden');
+    $('#ocrProgressWrap').classList.add('hidden');
+    if(detected){
+      const extra=credentialExistingWorker?`En Firebase figura como “${credentialExistingWorker.n}”. `:'';
+      $('#credentialOcrNote').textContent=`${extra}OCR ${confidence?`con ${confidence}% de confianza. `:''}Confirmá si está correcto o corregilo antes de guardar.`;
+      setCredentialStatus('Lectura terminada. Revisá el nombre.','bi-check-circle');
+    }else{
+      $('#credentialNameResult').readOnly=false;$('#credentialOcrNote').textContent='No pude leer el nombre con suficiente claridad. Escribilo y luego confirmá.';setCredentialStatus('Código leído, nombre no reconocido.','bi-exclamation-circle');
+    }
+  }
+  async function handleCredentialBarcode(code){
+    if(credentialProcessing)return;credentialProcessing=true;credentialCode=code;
+    let canvas;
+    try{canvas=captureNameZone()}catch(e){credentialProcessing=false;setCredentialStatus('No pude capturar la zona del nombre. Reintentá.','bi-exclamation-triangle');return}
+    try{if(window.Quagga)Quagga.stop()}catch(e){}
+    quaggaRunning=false;quaggaInitialized=false;
+    await runCredentialOcr(canvas,code);
+  }
+  function startCredentialCamera(){
+    resetCredentialResult();credentialScanActive=true;
+    resumeHarvestCamera=active&&quaggaRunning;
+    if(quaggaRunning||quaggaInitialized){try{Quagga.stop()}catch(e){}quaggaRunning=false;quaggaInitialized=false}
+    const target=$('#credentialViewport');target.innerHTML='';$('#credentialPlaceholder').classList.remove('hidden');$('#credentialPlaceholder').innerHTML='<div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Solicitando acceso a la cámara…</div>';
+    setCredentialStatus('Preparando cámara…','bi-camera-video');bindQuagga();
+    if(!window.Quagga||!navigator.mediaDevices?.getUserMedia||!window.isSecureContext){setCredentialStatus('La cámara requiere HTTPS y permiso del navegador.','bi-camera-video-off');return}
+    try{
+      Quagga.init({inputStream:{name:'CredentialLive',type:'LiveStream',target,constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},area:{top:'13%',right:'7%',left:'7%',bottom:'48%'}},locator:{patchSize:'medium',halfSample:true},decoder:{readers:['code_128_reader','code_39_reader','codabar_reader','i2of5_reader']},locate:true,frequency:10},err=>{
+        if(err){setCredentialStatus(cameraErrorMessage(err),'bi-camera-video-off');return}
+        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Alineá la credencial y mantenela quieta.','bi-upc-scan')}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
+      });
+    }catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
+  }
+  function closeCredentialScanner(){
+    credentialScanActive=false;credentialProcessing=false;
+    if(window.Quagga&&(quaggaRunning||quaggaInitialized)){try{Quagga.stop()}catch(e){}}
+    quaggaRunning=false;quaggaInitialized=false;$('#credentialViewport').innerHTML='';closeModal($('#credentialModal'));
+    if(active&&resumeHarvestCamera){setTimeout(startCamera,180)}
+    resumeHarvestCamera=false;
+  }
+  async function confirmCredentialWorker(){
+    const name=$('#credentialNameResult').value.trim(),code=normalize(credentialCode);
+    if(!code){toast('No hay un código detectado');return}if(name.length<2){toast('Revisá el nombre antes de confirmar');$('#credentialNameResult').readOnly=false;$('#credentialNameResult').focus();return}
+    let w=credentialExistingWorker;
+    if(w){w.n=name;w.code=code;await persistWorker(w);toast('Recolector actualizado')}
+    else{w={id:nextWorkerId++,n:name,code};workers.push(w);await persistWorker(w);toast('Recolector registrado')}
+    saveState();renderPeopleAdmin();renderManualWorkers();strongScanFeedback();closeCredentialScanner();
+  }
+
   function bindQuagga(){
     if(quaggaBound||!window.Quagga)return;
     Quagga.onDetected(result=>{
-      if(!quaggaRunning||modalDepth>0||Date.now()<scanPausedUntil)return;
+      if(!quaggaRunning||Date.now()<scanPausedUntil)return;
       const code=normalize(result?.codeResult?.code);if(!code)return;
+      if(credentialScanActive){if(credentialProcessing)return;handleCredentialBarcode(code);return}
+      if(modalDepth>0)return;
       const now=Date.now();
       if(scanLockCode===code){scanLastSeen=now;return}
       const lastOk=recentCodeTimes.get(code)||0;if(now-lastOk<2600)return;
       scanLockCode=code;scanLastSeen=now;handleBarcode(code);
     });
     Quagga.onProcessed(()=>{
+      if(credentialScanActive)return;
       if(scanLockCode&&Date.now()-scanLastSeen>1450){scanLockCode='';setReader('ready','Listo para escanear','Acercá la siguiente credencial al recuadro.')}
     });
     quaggaBound=true;
@@ -750,6 +938,11 @@
   $('#endClose').onclick=()=>closeModal($('#confirmEndModal'));$('#cancelEndBtn').onclick=()=>closeModal($('#confirmEndModal'));$('#confirmEndBtn').onclick=endDay;
 
   $('#peopleBtn').onclick=()=>openModal($('#peopleModal'));$('#peopleClose').onclick=()=>closeModal($('#peopleModal'));
+  $('#scanCredentialBtn').onclick=()=>{openModal($('#credentialModal'));startCredentialCamera()};
+  $('#credentialClose').onclick=closeCredentialScanner;$('#credentialCancelBtn').onclick=closeCredentialScanner;
+  $('#credentialRetryBtn').onclick=startCredentialCamera;
+  $('#credentialEditBtn').onclick=()=>{$('#credentialNameResult').readOnly=false;$('#credentialNameResult').focus();$('#credentialOcrNote').textContent='Corregí el nombre y luego tocá “Confirmar recolector”.'};
+  $('#credentialConfirmBtn').onclick=confirmCredentialWorker;
   $('#addWorkerBtn').onclick=()=>{
     const n=$('#newWorkerName').value.trim(),code=normalize($('#newWorkerCode').value);if(n.length<2){toast('Ingresá un nombre válido');return}if(!code){toast('Ingresá el código de la credencial');return}if(workerByCode(code)){toast('Ese código ya está asociado');return}
     const w={id:nextWorkerId++,n,code};workers.push(w);void persistWorker(w);$('#newWorkerName').value='';$('#newWorkerCode').value='';render();toast('Recolector agregado');
@@ -759,7 +952,7 @@
   ['crew','lot','var','bin'].forEach(id=>$('#'+id).addEventListener('change',()=>{const m=$('#bin').value.match(/(\d+)$/);if(m)binNo=parseInt(m[1],10);render()}));
 
   // Cerrar modal tocando el fondo, no el contenido.
-  $$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m&&!m.matches('#confirmEndModal'))closeModal(m)}));
+  $$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m&&!m.matches('#confirmEndModal,#credentialModal'))closeModal(m)}));
 
   if(!loadState())seedInitial();
   setFirebaseTech(!!db,db?'Conectando con Firebase…':'Firebase no disponible');
