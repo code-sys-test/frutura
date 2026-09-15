@@ -130,16 +130,12 @@
     .credential-intro{padding:12px;border:1px solid #cfe0d5;border-radius:13px;background:var(--green-soft);margin-bottom:13px}
     .credential-intro strong{display:block;font-size:.91rem;margin-bottom:3px}
     .credential-intro p{margin:0 0 10px;color:var(--muted);font-size:.78rem;line-height:1.4}
-    .credential-frame{position:relative;height:min(52dvh,430px);min-height:300px;background:#0f1411;border-radius:14px;overflow:hidden}
+    .credential-frame{position:relative;height:min(34dvh,270px);min-height:200px;background:#0f1411;border-radius:15px;overflow:hidden}
     #credentialViewport{position:absolute;inset:0;overflow:hidden}
     #credentialViewport video,#credentialViewport canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover!important}
     #credentialViewport canvas.drawingBuffer{display:none!important}
     .credential-placeholder{position:absolute;inset:0;z-index:2;display:grid;place-items:center;text-align:center;color:#fff;padding:24px;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.62));font-weight:800}
-    .credential-guide{position:absolute;z-index:4;left:7%;right:7%;top:10%;bottom:10%;border:2px solid rgba(255,255,255,.92);border-radius:16px;pointer-events:none;box-shadow:0 0 0 999px rgba(0,0,0,.18)}
-    .credential-zone{position:absolute;left:7%;right:7%;border-radius:9px;border:2px dashed rgba(255,255,255,.85);display:flex;align-items:flex-start;justify-content:flex-start;padding:5px 7px;color:white;font-size:.68rem;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.7)}
-    .credential-zone.barcode{top:18%;height:28%}
-    .credential-zone.name{top:51%;height:27%;border-color:#7ff0aa}
-    .credential-status{display:flex;gap:9px;align-items:center;padding:10px 2px 2px;font-size:.8rem;color:var(--muted)}
+            .credential-status{display:flex;gap:9px;align-items:center;padding:10px 2px 2px;font-size:.8rem;color:var(--muted)}
     .credential-status i{font-size:1.1rem;color:var(--green)}
     .credential-result{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:13px;background:#fff}
     .credential-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -173,7 +169,7 @@
       #sessionModal .setup-grid{grid-template-columns:1fr}
       #manualModal .sheet-body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
       #credentialModal .sheet-body{padding:10px 10px 18px}
-      #credentialModal .credential-frame{height:48dvh;min-height:285px;border-radius:12px}
+      #credentialModal .credential-frame{height:min(31dvh,230px);min-height:175px;border-radius:12px}
       .credential-result-grid{grid-template-columns:1fr}
     }
     @media(max-height:690px) and (max-width:520px){
@@ -365,7 +361,7 @@
 <div id="credentialModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="credentialTitle">
   <div class="sheet">
     <div class="sheet-head">
-      <div><h2 id="credentialTitle">Escanear credencial</h2><p>Primero leé el código de barras y luego ingresá el nombre manualmente.</p></div>
+      <div><h2 id="credentialTitle">Escanear credencial</h2><p>Acercá la credencial como durante la jornada. Al detectar el código, ingresá el nombre manualmente.</p></div>
       <button class="close-btn" id="credentialClose" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
     </div>
     <div class="sheet-body">
@@ -373,9 +369,7 @@
         <div class="credential-frame">
           <div id="credentialViewport"></div>
           <div id="credentialPlaceholder" class="credential-placeholder"><div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Preparando cámara…</div></div>
-          <div class="credential-guide">
-            <div class="credential-zone barcode">CÓDIGO DE BARRAS</div>
-          </div>
+          <div class="scan-guide"></div>
         </div>
         <div class="credential-status"><i id="credentialStatusIcon" class="bi bi-upc-scan"></i><span id="credentialStatusText">Esperando código de barras…</span></div>
       </div>
@@ -707,9 +701,9 @@
     setCredentialStatus('Preparando cámara…','bi-camera-video');bindQuagga();
     if(!window.Quagga||!navigator.mediaDevices?.getUserMedia||!window.isSecureContext){setCredentialStatus('La cámara requiere HTTPS y permiso del navegador.','bi-camera-video-off');return}
     try{
-      Quagga.init({inputStream:{name:'CredentialLive',type:'LiveStream',target,constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},area:{top:'13%',right:'7%',left:'7%',bottom:'48%'}},locator:{patchSize:'medium',halfSample:true},decoder:{readers:['code_128_reader','code_39_reader','codabar_reader','i2of5_reader']},locate:true,frequency:10},err=>{
+      Quagga.init({inputStream:{name:'CredentialLive',type:'LiveStream',target,constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},area:{top:'17%',right:'7%',left:'7%',bottom:'17%'}},locator:{patchSize:'medium',halfSample:true},decoder:{readers:['code_128_reader','code_39_reader','codabar_reader','i2of5_reader']},locate:true,frequency:12},err=>{
         if(err){setCredentialStatus(cameraErrorMessage(err),'bi-camera-video-off');return}
-        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Alineá el código de barras dentro del recuadro.','bi-upc-scan')}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
+        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Acercá la credencial al lector, igual que durante la jornada.','bi-upc-scan')}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
       });
     }catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
   }
