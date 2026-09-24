@@ -62,8 +62,16 @@
     #cameraViewport video,#cameraViewport canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover!important}
     #cameraViewport canvas.drawingBuffer{display:none!important}
     .camera-placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:28px;color:white;background:linear-gradient(180deg,rgba(0,0,0,.22),rgba(0,0,0,.63));z-index:2;font-weight:800;line-height:1.35}
-    .scan-guide{position:absolute;z-index:3;left:9%;right:9%;top:33%;height:34%;border:3px solid rgba(255,255,255,.95);border-radius:15px;box-shadow:0 0 0 999px rgba(0,0,0,.16);pointer-events:none}
-    .scan-guide:after{content:"";position:absolute;left:8%;right:8%;top:50%;height:3px;border-radius:4px;background:#62e79b;box-shadow:0 0 12px #62e79b}
+    .scan-guide{position:absolute;z-index:3;left:5%;right:5%;top:10%;bottom:10%;border:3px solid rgba(255,255,255,.95);border-radius:15px;box-shadow:0 0 0 999px rgba(0,0,0,.12);pointer-events:none}
+    .scan-guide:after{content:"";position:absolute;left:5%;right:5%;top:50%;height:3px;border-radius:4px;background:#62e79b;box-shadow:0 0 12px #62e79b}
+    .camera-tools{position:absolute;right:9px;bottom:9px;z-index:7;display:flex;gap:6px;align-items:center}
+    .camera-tool,.zoom-tools{height:42px;border:1px solid rgba(255,255,255,.52);background:rgba(10,20,14,.82);color:#fff;border-radius:11px;backdrop-filter:blur(6px)}
+    .camera-tool{width:44px;display:grid;place-items:center;cursor:pointer}
+    .camera-tool.active{background:#fff;color:var(--text)}
+    .zoom-tools{display:flex;align-items:center;overflow:hidden}
+    .zoom-tools button{width:38px;height:40px;border:0;background:transparent;color:#fff;font-size:1.15rem;font-weight:950;cursor:pointer}
+    .zoom-tools span{min-width:45px;text-align:center;font-size:.72rem;font-weight:900;color:#fff}
+    .camera-tools.hidden,.camera-tool.hidden,.zoom-tools.hidden{display:none!important}
     .camera-overlay-state{position:absolute;top:9px;left:9px;z-index:5;background:rgba(12,24,17,.78);color:#fff;border-radius:999px;padding:6px 9px;font-size:.7rem;font-weight:900;display:flex;gap:6px;align-items:center;backdrop-filter:blur(6px)}
     .camera-overlay-state .dot{width:8px;height:8px;border-radius:50%;background:#ffd25e}
     .camera-overlay-state.ready .dot{background:#65e89e}
@@ -194,13 +202,24 @@
       <div class="muted small">Completá estos datos una sola vez. Al comenzar, la cámara se activa automáticamente.</div>
       <div class="setup-grid">
         <label>Cuadrilla
-          <select id="crew"><option>Cuadrilla 04</option><option>Cuadrilla 07</option></select>
+          <input id="crew" value="Cuadrilla 04" placeholder="Ej. Cuadrilla 04" autocomplete="off">
         </label>
         <label>Cuadra
           <input id="lot" value="Cuadra 14" autocomplete="off">
         </label>
         <label>Variedad
-          <select id="var"><option>Mandarina Afourer</option><option>Mandarina Murcott</option></select>
+          <select id="var">
+            <optgroup label="Mandarina">
+              <option>Mandarina Afourer</option>
+              <option>Mandarina Murcott</option>
+            </optgroup>
+            <optgroup label="Naranja">
+              <option>Naranja Valencia</option>
+              <option>Naranja Navelina</option>
+              <option>Naranja Washington Navel</option>
+              <option>Naranja Salustiana</option>
+            </optgroup>
+          </select>
         </label>
         <label>Primer bin
           <input id="bin" value="BIN-0042" autocomplete="off">
@@ -228,6 +247,12 @@
           <div id="cameraPlaceholder" class="camera-placeholder"><div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Activando cámara…</div></div>
           <div class="scan-guide"></div>
           <div id="cameraBadge" class="camera-overlay-state"><span class="dot"></span><span>PREPARANDO</span></div>
+          <div id="cameraTools" class="camera-tools hidden">
+            <button id="torchBtn" class="camera-tool hidden" type="button" aria-label="Encender linterna" title="Linterna"><i class="bi bi-lightning-fill"></i></button>
+            <div id="zoomTools" class="zoom-tools hidden" aria-label="Control de zoom">
+              <button id="zoomOutBtn" type="button" aria-label="Alejar">−</button><span id="zoomValue">1.0×</span><button id="zoomInBtn" type="button" aria-label="Acercar">+</button>
+            </div>
+          </div>
         </div>
         <div class="reader-state">
           <div class="reader-message">
@@ -329,9 +354,9 @@
     <div class="sheet-head"><div><h2>Datos de jornada</h2><p>Los nuevos vuelcos usarán estos datos.</p></div><button class="close-btn" id="sessionClose"><i class="bi bi-x-lg"></i></button></div>
     <div class="sheet-body">
       <div class="setup-grid">
-        <label>Cuadrilla<select id="editCrew"><option>Cuadrilla 04</option><option>Cuadrilla 07</option></select></label>
+        <label>Cuadrilla<input id="editCrew" placeholder="Ej. Cuadrilla 04" autocomplete="off"></label>
         <label>Cuadra<input id="editLot"></label>
-        <label>Variedad<select id="editVar"><option>Mandarina Afourer</option><option>Mandarina Murcott</option></select></label>
+        <label>Variedad<select id="editVar"><optgroup label="Mandarina"><option>Mandarina Afourer</option><option>Mandarina Murcott</option></optgroup><optgroup label="Naranja"><option>Naranja Valencia</option><option>Naranja Navelina</option><option>Naranja Washington Navel</option><option>Naranja Salustiana</option></optgroup></select></label>
         <label>Bin<input id="editBin"></label>
       </div>
     </div>
@@ -370,6 +395,12 @@
           <div id="credentialViewport"></div>
           <div id="credentialPlaceholder" class="credential-placeholder"><div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Preparando cámara…</div></div>
           <div class="scan-guide"></div>
+          <div id="credentialCameraTools" class="camera-tools hidden">
+            <button id="credentialTorchBtn" class="camera-tool hidden" type="button" aria-label="Encender linterna" title="Linterna"><i class="bi bi-lightning-fill"></i></button>
+            <div id="credentialZoomTools" class="zoom-tools hidden" aria-label="Control de zoom">
+              <button id="credentialZoomOutBtn" type="button" aria-label="Alejar">−</button><span id="credentialZoomValue">1.0×</span><button id="credentialZoomInBtn" type="button" aria-label="Acercar">+</button>
+            </div>
+          </div>
         </div>
         <div class="credential-status"><i id="credentialStatusIcon" class="bi bi-upc-scan"></i><span id="credentialStatusText">Esperando código de barras…</span></div>
       </div>
@@ -455,11 +486,31 @@
   let modalDepth=0,observationWorkerId=null,observationEventId=null,selectedReasons=new Set();
   let lastEventId=null,undoTimer=null,audioCtx=null,wakeLock=null;
   let credentialScanActive=false,credentialProcessing=false,credentialCode='',credentialExistingWorker=null,resumeHarvestCamera=false;
+  let activeCameraTrack=null,activeCameraCapabilities=null,activeCameraMode=null,torchEnabled=false;
+  const SCANNER_WORKERS=Math.max(1,Math.min(4,(navigator.hardwareConcurrency||4)-1));
+  const SCANNER_AREA={top:'10%',right:'5%',left:'5%',bottom:'10%'};
+  // La credencial de referencia de Frutura fue identificada como CODE 128.
+  // Buscar un único formato reduce trabajo y acelera la detección.
+  const SCANNER_READERS=['code_128_reader'];
+  function scannerConfig(name,target){
+    return {
+      inputStream:{
+        name,type:'LiveStream',target,
+        constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
+        area:SCANNER_AREA
+      },
+      locator:{patchSize:'medium',halfSample:false},
+      decoder:{readers:SCANNER_READERS},
+      locate:true,
+      frequency:16,
+      numOfWorkers:SCANNER_WORKERS
+    };
+  }
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalize=v=>String(v??'').trim().replace(/\s+/g,'');
   const nowTime=d=>d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const ctx=()=>({crew:$('#crew').value,lot:$('#lot').value.trim()||'Sin cuadra',vari:$('#var').value,bin:$('#bin').value.trim()||'Sin bin'});
+  const ctx=()=>({crew:$('#crew').value.trim()||'Sin cuadrilla',lot:$('#lot').value.trim()||'Sin cuadra',vari:$('#var').value,bin:$('#bin').value.trim()||'Sin bin'});
   const currentEvents=()=>events;
   const workerById=id=>workers.find(w=>w.id===id);
   const workerByCode=code=>workers.find(w=>normalize(w.code)===normalize(code));
@@ -656,6 +707,84 @@
     if(!window.isSecureContext)return 'La cámara requiere HTTPS.';
     return 'No fue posible iniciar la cámara.';
   }
+  function activeTrackFromVideo(mode){
+    try{
+      if(window.Quagga?.CameraAccess?.getActiveTrack){
+        const t=Quagga.CameraAccess.getActiveTrack();
+        if(t)return t;
+      }
+    }catch(e){}
+    const root=mode==='credential'?$('#credentialViewport'):$('#cameraViewport');
+    const video=root?.querySelector('video');
+    return video?.srcObject?.getVideoTracks?.()[0]||null;
+  }
+  function cameraToolEls(mode){
+    const cred=mode==='credential';
+    return {
+      wrap:$(cred?'#credentialCameraTools':'#cameraTools'),
+      torch:$(cred?'#credentialTorchBtn':'#torchBtn'),
+      zoom:$(cred?'#credentialZoomTools':'#zoomTools'),
+      zoomValue:$(cred?'#credentialZoomValue':'#zoomValue')
+    };
+  }
+  function hideCameraTools(mode){
+    const ui=cameraToolEls(mode);
+    ui.wrap?.classList.add('hidden');ui.torch?.classList.add('hidden');ui.zoom?.classList.add('hidden');
+  }
+  async function optimizeActiveCamera(mode){
+    const track=activeTrackFromVideo(mode);
+    if(!track)return;
+    activeCameraTrack=track;activeCameraMode=mode;torchEnabled=false;
+    let caps={};
+    try{caps=track.getCapabilities?.()||{}}catch(e){}
+    activeCameraCapabilities=caps;
+    const advanced=[];
+    if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.push({focusMode:'continuous'});
+    else if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('single-shot'))advanced.push({focusMode:'single-shot'});
+    if(Array.isArray(caps.exposureMode)&&caps.exposureMode.includes('continuous'))advanced.push({exposureMode:'continuous'});
+    if(Array.isArray(caps.whiteBalanceMode)&&caps.whiteBalanceMode.includes('continuous'))advanced.push({whiteBalanceMode:'continuous'});
+    if(advanced.length){
+      try{await track.applyConstraints({advanced})}catch(e){console.debug('Ajustes automáticos de cámara no disponibles:',e)}
+    }
+    const ui=cameraToolEls(mode);
+    const hasTorch=!!caps.torch;
+    const hasZoom=!!caps.zoom&&Number.isFinite(caps.zoom.min)&&Number.isFinite(caps.zoom.max)&&caps.zoom.max>caps.zoom.min;
+    ui.wrap?.classList.toggle('hidden',!(hasTorch||hasZoom));
+    ui.torch?.classList.toggle('hidden',!hasTorch);
+    ui.zoom?.classList.toggle('hidden',!hasZoom);
+    if(hasZoom){
+      const current=Number(track.getSettings?.().zoom||caps.zoom.min||1);
+      ui.zoomValue.textContent=`${current.toFixed(1)}×`;
+    }
+  }
+  async function toggleTorch(mode){
+    if(!activeCameraTrack||activeCameraMode!==mode||!activeCameraCapabilities?.torch)return;
+    torchEnabled=!torchEnabled;
+    try{
+      await activeCameraTrack.applyConstraints({advanced:[{torch:torchEnabled}]});
+      const b=cameraToolEls(mode).torch;
+      b?.classList.toggle('active',torchEnabled);
+      if(b)b.setAttribute('aria-label',torchEnabled?'Apagar linterna':'Encender linterna');
+    }catch(e){torchEnabled=false;toast('La linterna no está disponible en este dispositivo')}
+  }
+  async function changeZoom(mode,direction){
+    if(!activeCameraTrack||activeCameraMode!==mode||!activeCameraCapabilities?.zoom)return;
+    const z=activeCameraCapabilities.zoom,settings=activeCameraTrack.getSettings?.()||{};
+    const step=Math.max(Number(z.step)||0.1,0.1);
+    const current=Number(settings.zoom||z.min||1);
+    const next=Math.min(Number(z.max),Math.max(Number(z.min),current+(direction*step)));
+    try{
+      await activeCameraTrack.applyConstraints({advanced:[{zoom:next}]});
+      cameraToolEls(mode).zoomValue.textContent=`${next.toFixed(1)}×`;
+    }catch(e){toast('No fue posible ajustar el zoom')}
+  }
+  function clearActiveCamera(mode){
+    hideCameraTools(mode);
+    if(activeCameraMode===mode){
+      activeCameraTrack=null;activeCameraCapabilities=null;activeCameraMode=null;torchEnabled=false;
+    }
+  }
+
   function setCredentialStatus(text,icon='bi-upc-scan'){
     $('#credentialStatusText').textContent=text;$('#credentialStatusIcon').className='bi '+icon;
   }
@@ -673,7 +802,7 @@
     credentialProcessing=true;credentialCode=code;
     credentialExistingWorker=workerByCode(code)||null;
     try{if(window.Quagga)Quagga.stop()}catch(e){}
-    quaggaRunning=false;quaggaInitialized=false;
+    quaggaRunning=false;quaggaInitialized=false;clearActiveCamera('credential');
     $('#credentialCapture').classList.add('hidden');
 
     $('#credentialCodeResult').textContent=code;
@@ -696,21 +825,21 @@
   function startCredentialCamera(){
     resetCredentialResult();credentialScanActive=true;
     resumeHarvestCamera=resumeHarvestCamera||(active&&quaggaRunning);
-    if(quaggaRunning||quaggaInitialized){try{Quagga.stop()}catch(e){}quaggaRunning=false;quaggaInitialized=false}
+    if(quaggaRunning||quaggaInitialized){try{Quagga.stop()}catch(e){}quaggaRunning=false;quaggaInitialized=false;clearActiveCamera('harvest')}
     const target=$('#credentialViewport');target.innerHTML='';$('#credentialPlaceholder').classList.remove('hidden');$('#credentialPlaceholder').innerHTML='<div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Solicitando acceso a la cámara…</div>';
     setCredentialStatus('Preparando cámara…','bi-camera-video');bindQuagga();
     if(!window.Quagga||!navigator.mediaDevices?.getUserMedia||!window.isSecureContext){setCredentialStatus('La cámara requiere HTTPS y permiso del navegador.','bi-camera-video-off');return}
     try{
-      Quagga.init({inputStream:{name:'CredentialLive',type:'LiveStream',target,constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},area:{top:'17%',right:'7%',left:'7%',bottom:'17%'}},locator:{patchSize:'medium',halfSample:true},decoder:{readers:['code_128_reader','code_39_reader','codabar_reader','i2of5_reader']},locate:true,frequency:12},err=>{
+      Quagga.init(scannerConfig('CredentialLive',target),err=>{
         if(err){setCredentialStatus(cameraErrorMessage(err),'bi-camera-video-off');return}
-        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Acercá la credencial al lector, igual que durante la jornada.','bi-upc-scan')}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
+        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Acercá el código al área de lectura. El lector está optimizado para Code 128.','bi-upc-scan');setTimeout(()=>optimizeActiveCamera('credential'),120)}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
       });
     }catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
   }
   function closeCredentialScanner(){
     credentialScanActive=false;credentialProcessing=false;
     if(window.Quagga&&(quaggaRunning||quaggaInitialized)){try{Quagga.stop()}catch(e){}}
-    quaggaRunning=false;quaggaInitialized=false;$('#credentialViewport').innerHTML='';closeModal($('#credentialModal'));
+    quaggaRunning=false;quaggaInitialized=false;clearActiveCamera('credential');$('#credentialViewport').innerHTML='';closeModal($('#credentialModal'));
     if(active&&resumeHarvestCamera){setTimeout(startCamera,180)}
     resumeHarvestCamera=false;
   }
@@ -751,19 +880,16 @@
     const target=$('#cameraViewport');target.innerHTML='';$('#cameraPlaceholder').classList.remove('hidden');$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video" style="font-size:1.5rem"></i><br>Solicitando acceso a la cámara…</div>';
     setReader('loading','Preparando cámara','Aceptá el permiso de cámara si el navegador lo solicita.');bindQuagga();
     try{
-      Quagga.init({
-        inputStream:{name:'Live',type:'LiveStream',target,constraints:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},area:{top:'17%',right:'7%',left:'7%',bottom:'17%'}},
-        locator:{patchSize:'medium',halfSample:true},decoder:{readers:['code_128_reader','code_39_reader','codabar_reader','i2of5_reader']},locate:true,frequency:12
-      },err=>{
+      Quagga.init(scannerConfig('Live',target),err=>{
         if(err){quaggaRunning=false;quaggaInitialized=false;setReader('error','No se pudo activar la cámara',cameraErrorMessage(err));$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video-off" style="font-size:1.5rem"></i><br>Usá el botón de cámara para reintentar.</div>';return}
         quaggaInitialized=true;
-        try{Quagga.start();quaggaRunning=true;$('#cameraPlaceholder').classList.add('hidden');$('#cameraTech').className='ok';setReader('ready','Listo para escanear','Centrá el código de barras dentro del recuadro.');updateCameraButtons()}catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
+        try{Quagga.start();quaggaRunning=true;$('#cameraPlaceholder').classList.add('hidden');$('#cameraTech').className='ok';setReader('ready','Listo para escanear','Acercá el código al área amplia de lectura.');updateCameraButtons();setTimeout(()=>optimizeActiveCamera('harvest'),120)}catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
       });
     }catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
   }
   function stopCamera(){
     if(window.Quagga&&(quaggaRunning||quaggaInitialized)){try{Quagga.stop()}catch(e){}}
-    quaggaRunning=false;quaggaInitialized=false;scanLockCode='';$('#cameraViewport').innerHTML='';$('#cameraPlaceholder').classList.remove('hidden');$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video-off" style="font-size:1.5rem"></i><br>Cámara detenida</div>';$('#cameraTech').className='off';
+    quaggaRunning=false;quaggaInitialized=false;scanLockCode='';clearActiveCamera('harvest');$('#cameraViewport').innerHTML='';$('#cameraPlaceholder').classList.remove('hidden');$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video-off" style="font-size:1.5rem"></i><br>Cámara detenida</div>';$('#cameraTech').className='off';
     setReader('error','Cámara detenida','Tocá el botón de cámara para continuar.');updateCameraButtons();
   }
   function updateCameraButtons(){
@@ -833,6 +959,7 @@
   }
 
   function startDay(){
+    if(!$('#crew').value.trim()){toast('Ingresá el nombre o número de la cuadrilla');$('#crew').focus();return}
     initAudio();
     if(!currentJornadaId)currentJornadaId=`j_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
     active=true;$('#summaryView').classList.add('hidden');saveState();
@@ -860,13 +987,19 @@
     const c=ctx();$('#editCrew').value=c.crew;$('#editLot').value=c.lot;$('#editVar').value=c.vari;$('#editBin').value=c.bin;closeModal($('#menuModal'));openModal($('#sessionModal'));
   }
   function saveSessionEdit(){
-    $('#crew').value=$('#editCrew').value;$('#lot').value=$('#editLot').value.trim()||'Sin cuadra';$('#var').value=$('#editVar').value;$('#bin').value=$('#editBin').value.trim()||'Sin bin';
+    $('#crew').value=$('#editCrew').value.trim()||'Sin cuadrilla';$('#lot').value=$('#editLot').value.trim()||'Sin cuadra';$('#var').value=$('#editVar').value;$('#bin').value=$('#editBin').value.trim()||'Sin bin';
     const m=$('#bin').value.match(/(\d+)$/);if(m)binNo=parseInt(m[1],10);closeModal($('#sessionModal'));saveState();void persistJornada();render();toast('Datos de jornada actualizados');
   }
 
   // Eventos UI
   $('#startBtn').onclick=startDay;
   $('#cameraToggle').onclick=()=>quaggaRunning?stopCamera():startCamera();
+  $('#torchBtn').onclick=()=>toggleTorch('harvest');
+  $('#zoomOutBtn').onclick=()=>changeZoom('harvest',-1);
+  $('#zoomInBtn').onclick=()=>changeZoom('harvest',1);
+  $('#credentialTorchBtn').onclick=()=>toggleTorch('credential');
+  $('#credentialZoomOutBtn').onclick=()=>changeZoom('credential',-1);
+  $('#credentialZoomInBtn').onclick=()=>changeZoom('credential',1);
   $('#finishBinBtn').onclick=finishBin;
   $('#finishDayDirectBtn').onclick=()=>openModal($('#confirmEndModal'));
   $('#manualBtn').onclick=()=>openModal($('#manualModal'));
