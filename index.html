@@ -489,9 +489,9 @@
   let activeCameraTrack=null,activeCameraCapabilities=null,activeCameraMode=null,torchEnabled=false;
   const SCANNER_WORKERS=Math.max(1,Math.min(4,(navigator.hardwareConcurrency||4)-1));
   const SCANNER_AREA={top:'10%',right:'5%',left:'5%',bottom:'10%'};
-  // La credencial de referencia de Frutura fue identificada como CODE 128.
-  // Buscar un único formato reduce trabajo y acelera la detección.
-  const SCANNER_READERS=['code_128_reader'];
+  // Se habilitan los formatos lineales utilizados por el lector original.
+  // Esto permite reconocer distintos tipos de códigos sin limitarse únicamente a CODE 128.
+  const SCANNER_READERS=['code_128_reader','code_39_reader','codabar_reader','i2of5_reader'];
   function scannerConfig(name,target){
     return {
       inputStream:{
