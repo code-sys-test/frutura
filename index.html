@@ -249,6 +249,7 @@
           <div id="cameraBadge" class="camera-overlay-state"><span class="dot"></span><span>PREPARANDO</span></div>
           <div id="cameraTools" class="camera-tools hidden">
             <button id="torchBtn" class="camera-tool hidden" type="button" aria-label="Encender linterna" title="Linterna"><i class="bi bi-lightning-fill"></i></button>
+            <button id="refocusBtn" class="camera-tool" type="button" aria-label="Reenfocar cámara" title="Reenfocar"><i class="bi bi-bullseye"></i></button>
             <div id="zoomTools" class="zoom-tools hidden" aria-label="Control de zoom">
               <button id="zoomOutBtn" type="button" aria-label="Alejar">−</button><span id="zoomValue">1.0×</span><button id="zoomInBtn" type="button" aria-label="Acercar">+</button>
             </div>
@@ -397,6 +398,7 @@
           <div class="scan-guide"></div>
           <div id="credentialCameraTools" class="camera-tools hidden">
             <button id="credentialTorchBtn" class="camera-tool hidden" type="button" aria-label="Encender linterna" title="Linterna"><i class="bi bi-lightning-fill"></i></button>
+            <button id="credentialRefocusBtn" class="camera-tool" type="button" aria-label="Reenfocar cámara" title="Reenfocar"><i class="bi bi-bullseye"></i></button>
             <div id="credentialZoomTools" class="zoom-tools hidden" aria-label="Control de zoom">
               <button id="credentialZoomOutBtn" type="button" aria-label="Alejar">−</button><span id="credentialZoomValue">1.0×</span><button id="credentialZoomInBtn" type="button" aria-label="Acercar">+</button>
             </div>
@@ -723,13 +725,14 @@
     return {
       wrap:$(cred?'#credentialCameraTools':'#cameraTools'),
       torch:$(cred?'#credentialTorchBtn':'#torchBtn'),
+      refocus:$(cred?'#credentialRefocusBtn':'#refocusBtn'),
       zoom:$(cred?'#credentialZoomTools':'#zoomTools'),
       zoomValue:$(cred?'#credentialZoomValue':'#zoomValue')
     };
   }
   function hideCameraTools(mode){
     const ui=cameraToolEls(mode);
-    ui.wrap?.classList.add('hidden');ui.torch?.classList.add('hidden');ui.zoom?.classList.add('hidden');
+    ui.wrap?.classList.add('hidden');ui.torch?.classList.add('hidden');ui.refocus?.classList.add('hidden');ui.zoom?.classList.add('hidden');
   }
   async function optimizeActiveCamera(mode){
     const track=activeTrackFromVideo(mode);
@@ -738,9 +741,9 @@
     let caps={};
     try{caps=track.getCapabilities?.()||{}}catch(e){}
     activeCameraCapabilities=caps;
+    // No forzamos focusMode: se deja el enfoque nativo del dispositivo,
+    // que suele ser más estable en teléfonos al leer credenciales a distintas distancias.
     const advanced=[];
-    if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.push({focusMode:'continuous'});
-    else if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('single-shot'))advanced.push({focusMode:'single-shot'});
     if(Array.isArray(caps.exposureMode)&&caps.exposureMode.includes('continuous'))advanced.push({exposureMode:'continuous'});
     if(Array.isArray(caps.whiteBalanceMode)&&caps.whiteBalanceMode.includes('continuous'))advanced.push({whiteBalanceMode:'continuous'});
     if(advanced.length){
@@ -749,7 +752,8 @@
     const ui=cameraToolEls(mode);
     const hasTorch=!!caps.torch;
     const hasZoom=!!caps.zoom&&Number.isFinite(caps.zoom.min)&&Number.isFinite(caps.zoom.max)&&caps.zoom.max>caps.zoom.min;
-    ui.wrap?.classList.toggle('hidden',!(hasTorch||hasZoom));
+    ui.wrap?.classList.remove('hidden');
+    ui.refocus?.classList.remove('hidden');
     ui.torch?.classList.toggle('hidden',!hasTorch);
     ui.zoom?.classList.toggle('hidden',!hasZoom);
     if(hasZoom){
@@ -778,6 +782,27 @@
       cameraToolEls(mode).zoomValue.textContent=`${next.toFixed(1)}×`;
     }catch(e){toast('No fue posible ajustar el zoom')}
   }
+  function refocusCamera(mode){
+    if(mode==='credential'&&!credentialScanActive)return;
+    if(mode==='harvest'&&!active)return;
+    scanPausedUntil=Date.now()+1150;
+    try{if(window.Quagga&&(quaggaRunning||quaggaInitialized))Quagga.stop()}catch(e){}
+    quaggaRunning=false;quaggaInitialized=false;scanLockCode='';clearActiveCamera(mode);
+    if(mode==='credential'){
+      const target=$('#credentialViewport');target.innerHTML='';
+      $('#credentialPlaceholder').classList.remove('hidden');
+      $('#credentialPlaceholder').innerHTML='<div><i class="bi bi-bullseye" style="font-size:1.5rem"></i><br>Reenfocando cámara…</div>';
+      setCredentialStatus('Reenfocando cámara…','bi-bullseye');
+      setTimeout(startCredentialCamera,180);
+    }else{
+      const target=$('#cameraViewport');target.innerHTML='';
+      $('#cameraPlaceholder').classList.remove('hidden');
+      $('#cameraPlaceholder').innerHTML='<div><i class="bi bi-bullseye" style="font-size:1.5rem"></i><br>Reenfocando cámara…</div>';
+      setReader('loading','Reenfocando cámara','Mantené la credencial a una distancia cómoda.');
+      setTimeout(startCamera,180);
+    }
+  }
+
   function clearActiveCamera(mode){
     hideCameraTools(mode);
     if(activeCameraMode===mode){
@@ -832,7 +857,7 @@
     try{
       Quagga.init(scannerConfig('CredentialLive',target),err=>{
         if(err){setCredentialStatus(cameraErrorMessage(err),'bi-camera-video-off');return}
-        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Acercá el código al área de lectura. El lector está optimizado para Code 128.','bi-upc-scan');setTimeout(()=>optimizeActiveCamera('credential'),120)}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
+        quaggaInitialized=true;try{Quagga.start();quaggaRunning=true;scanPausedUntil=Date.now()+900;$('#credentialPlaceholder').classList.add('hidden');setCredentialStatus('Estabilizando enfoque…','bi-bullseye');setTimeout(()=>{if(credentialScanActive&&quaggaRunning)setCredentialStatus('Mantené el código dentro del área amplia de lectura.','bi-upc-scan')},900);setTimeout(()=>optimizeActiveCamera('credential'),150)}catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
       });
     }catch(e){setCredentialStatus(cameraErrorMessage(e),'bi-camera-video-off')}
   }
@@ -883,7 +908,7 @@
       Quagga.init(scannerConfig('Live',target),err=>{
         if(err){quaggaRunning=false;quaggaInitialized=false;setReader('error','No se pudo activar la cámara',cameraErrorMessage(err));$('#cameraPlaceholder').innerHTML='<div><i class="bi bi-camera-video-off" style="font-size:1.5rem"></i><br>Usá el botón de cámara para reintentar.</div>';return}
         quaggaInitialized=true;
-        try{Quagga.start();quaggaRunning=true;$('#cameraPlaceholder').classList.add('hidden');$('#cameraTech').className='ok';setReader('ready','Listo para escanear','Acercá el código al área amplia de lectura.');updateCameraButtons();setTimeout(()=>optimizeActiveCamera('harvest'),120)}catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
+        try{Quagga.start();quaggaRunning=true;scanPausedUntil=Date.now()+900;$('#cameraPlaceholder').classList.add('hidden');$('#cameraTech').className='ok';setReader('loading','Estabilizando enfoque','Mantené la credencial a una distancia cómoda.');updateCameraButtons();setTimeout(()=>{if(active&&quaggaRunning)setReader('ready','Listo para escanear','No hace falta acercar demasiado el código; mantenelo dentro del área de lectura.')},900);setTimeout(()=>optimizeActiveCamera('harvest'),150)}catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
       });
     }catch(e){setReader('error','No se pudo activar la cámara',cameraErrorMessage(e))}
   }
@@ -995,9 +1020,11 @@
   $('#startBtn').onclick=startDay;
   $('#cameraToggle').onclick=()=>quaggaRunning?stopCamera():startCamera();
   $('#torchBtn').onclick=()=>toggleTorch('harvest');
+  $('#refocusBtn').onclick=()=>refocusCamera('harvest');
   $('#zoomOutBtn').onclick=()=>changeZoom('harvest',-1);
   $('#zoomInBtn').onclick=()=>changeZoom('harvest',1);
   $('#credentialTorchBtn').onclick=()=>toggleTorch('credential');
+  $('#credentialRefocusBtn').onclick=()=>refocusCamera('credential');
   $('#credentialZoomOutBtn').onclick=()=>changeZoom('credential',-1);
   $('#credentialZoomInBtn').onclick=()=>changeZoom('credential',1);
   $('#finishBinBtn').onclick=finishBin;
